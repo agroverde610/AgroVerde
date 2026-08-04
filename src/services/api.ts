@@ -6,7 +6,9 @@ import type {
 } from '../interfaces/ICompra';
 
 const api = axios.create({
-    baseURL: 'https://agroverde-e9gdg9hbc8a2ctgc.mexicocentral-01.azurewebsites.net/api'
+   baseURL: 'https://agroverde-e9gdg9hbc8a2ctgc.mexicocentral-01.azurewebsites.net/api'
+    //baseURL: 'https://localhost:7145/api'
+
     // Ya NO forzamos 'Content-Type': 'application/json' aquí.
     // Axios ya pone 'application/json' automático cuando mandas un objeto normal,
     // y 'multipart/form-data; boundary=...' automático cuando mandas un FormData
