@@ -301,7 +301,7 @@ const Caja: React.FC = () => {
                                 <div style={{ flex: "1 1 60%", background: "#fff", borderRadius: "10px", border: "1px solid #e5e7eb", padding: "20px" }}>
                                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "15px" }}>
                                         <h3 style={{ margin: 0, color: "#374151" }}>Historial de Movimientos</h3>
-                                        <button className="btn" style={{ background: "#f3f4f6", display: "flex", alignItems: "center", gap: "6px" }} onClick={() => setMostrarModalMov(true)}>
+                                            <button className="btn" style={{ background: "#9ca3af", display: "flex", alignItems: "center", gap: "6px" }} onClick={() => setMostrarModalMov(true)}>
                                             <FiPlusCircle size={16} /> Movimiento Manual
                                         </button>
                                     </div>

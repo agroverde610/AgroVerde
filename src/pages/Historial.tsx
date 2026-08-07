@@ -129,7 +129,10 @@ export default function Historial() {
             return;
         }
         try {
-            const usuarioId = Number(localStorage.getItem('idUsuario')) || undefined;
+            const usuarioGuardado = localStorage.getItem('usuario');
+            const usuario = usuarioGuardado ? JSON.parse(usuarioGuardado) : null;
+
+            const usuarioId = usuario?.id || usuario?.id_usuario || undefined;
             const res = await anularVenta(ventaAAnular.idVenta, motivoAnulacion.trim(), usuarioId);
             if (res.success) {
                 setModalAnularAbierto(false);
