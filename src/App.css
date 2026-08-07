@@ -272,6 +272,14 @@ body {
     transition: background-color 0.15s;
     overflow: hidden;
 }
+button.sidebar-link {
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    color: #4b5563;
+    line-height: normal;
+    margin: 0;
+}
 
 .sidebar:not(.expanded) .sidebar-link {
     justify-content: center;
