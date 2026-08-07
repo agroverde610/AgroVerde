@@ -21,7 +21,7 @@ import Marca from "./pages/Marca";
 import Promociones from "./pages/Promociones";
 import InventarioFisico from "./pages/Inventariofisico";
 import ReporteMermas from "./pages/Reportemermas";
-
+import Caja from "./pages/Caja";
 function App() {
     return (
         <HashRouter>
