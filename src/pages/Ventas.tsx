@@ -594,6 +594,13 @@ const Ventas: React.FC = () => {
     };
 
     const handlePagar = async () => {
+
+        const sesionCaja = localStorage.getItem("caja_sesion_id");
+        if (!sesionCaja && formaPago === "EFECTIVO") {
+            setError("Debes abrir tu turno de Caja antes de registrar una venta en efectivo.");
+            return;
+        }
+
         if (!clienteSeleccionado) {
             setError("Debes seleccionar un cliente antes de pagar.");
             return;
@@ -1026,7 +1033,11 @@ const Ventas: React.FC = () => {
                         <LuShoppingCart style={{ marginRight: 8 }} />
                         Ticket
                     </h3>
-
+                    {!localStorage.getItem("caja_sesion_id") && modoOperacion === 'venta' && (
+                        <div style={{ background: "#fef3c7", color: "#92400e", padding: "10px", borderRadius: "6px", marginBottom: "15px", fontSize: "13px", fontWeight: 600, borderLeft: "4px solid #f59e0b" }}>
+                            ⚠️ Tu caja está cerrada. No podrás cobrar en efectivo hasta abrir el turno.
+                        </div>
+                    )}
                     {error && <div className="error-message" style={{ color: "red", marginBottom: "10px", fontSize: "14px" }}>{error}</div>}
 
                     {/* Buscador de cliente (o prospecto, si estamos cotizando) */}

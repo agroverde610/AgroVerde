@@ -22,3 +22,17 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+obj/
+
+# Ignorar carpetas ocultas de Visual Studio
+.vs/
+
+# Ignorar el archivo de proyecto y sus temporales
+*.esproj
+*.FileListAbsolute.txt
+
+# Ignorar la configuración de Vite y TypeScript
+vite.config.ts
+tsconfig*.json
+
+

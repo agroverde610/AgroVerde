@@ -42,6 +42,7 @@ function App() {
                     <Route path="/clientes" element={<Clientes />} />
                     <Route path="/proveedores" element={<Proveedores />} />
                     <Route path="/compras" element={<Compras />} />
+                    <Route path="/caja" element={<Caja />} />
                     {/*<Route path="/herramientas" element={<Herramientas />} />*/}
                     {/*<Route path="/usuarios" element={<Usuarios />} />*/}
                     <Route path="/reportes" element={<Reportes />} />
