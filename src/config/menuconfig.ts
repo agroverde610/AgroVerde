@@ -5,7 +5,7 @@ import { TbBrandBumble } from "react-icons/tb";
 import { IoLogoBuffer } from "react-icons/io";
 import { BiCategory } from "react-icons/bi";
 import { LuHistory } from "react-icons/lu"; 
-
+import { PiCashRegister } from "react-icons/pi";
 
 export interface OpcionMenu {
     etiqueta: string;
@@ -60,6 +60,12 @@ export const opcionesMenu: OpcionMenu[] = [
         ruta: "/compras",
         icono: LuClipboardList,
         roles: ["Administrador", "EncargadoInventario"]
+    },
+    {
+        etiqueta: "Caja",
+        ruta: "/caja",
+        icono: PiCashRegister,
+        roles: ["Administrador", "Vendedor"]
     },
     // {
     //     etiqueta: "Herramientas",
