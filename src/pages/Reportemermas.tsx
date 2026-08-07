@@ -152,7 +152,7 @@ const ReporteMermas: React.FC = () => {
                                 <XAxis type="number" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={{ stroke: '#e5e7eb' }} />
                                 <YAxis type="category" dataKey="nombreProducto" width={130} tick={{ fontSize: 11, fill: '#4b5563' }} axisLine={{ stroke: '#e5e7eb' }} />
                                 <Tooltip
-                                    formatter={(value: number) => [`$${value.toFixed(2)}`, 'Valor perdido']}
+                                    formatter={(value: any) => [`$${Number(value || 0).toFixed(2)}`, 'Valor perdido']}
                                     contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
                                 />
                                 <Bar dataKey="valorPerdido" fill="#dc6b4f" radius={[0, 6, 6, 0]} maxBarSize={22} />
@@ -181,7 +181,7 @@ const ReporteMermas: React.FC = () => {
                                     ))}
                                 </Pie>
                                 <Tooltip
-                                    formatter={(value: number, _name, item: any) => [`${value} unidades`, item.payload.motivo]}
+                                    formatter={(value: any, _name: any, item: any) => [`${value} unidades`, item.payload.motivo]}
                                     contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
                                 />
                             </PieChart>
