@@ -9,6 +9,7 @@ interface MovimientoCaja {
     idMovimiento: number;
     tipoMovimiento: string;
     concepto: string;
+    formaPago: string;
     monto: number;
     fechaMovimiento: string;
     idVenta?: number | null;
@@ -283,6 +284,7 @@ const Caja: React.FC = () => {
                                                         <th>Hora</th>
                                                         <th>Tipo</th>
                                                         <th>Concepto</th>
+                                                        <th>Tipo Movimiento</th>
                                                         <th style={{ textAlign: "right" }}>Monto</th>
                                                     </tr>
                                                 </thead>
@@ -290,6 +292,7 @@ const Caja: React.FC = () => {
                                                     {movimientos.map((mov) => {
                                                         const esIngreso = mov.monto > 0;
                                                         const esTransferencia = mov.concepto.toUpperCase().includes('TRANSFERENCIA');
+                                                        const esEfectivo = mov.concepto.toUpperCase().includes('EFECTIVO');
 
                                                         return (
                                                             <tr key={mov.idMovimiento}>
@@ -300,9 +303,25 @@ const Caja: React.FC = () => {
                                                                     </span>
                                                                 </td>
                                                                 <td>
-                                                                    {mov.concepto}
-                                                                    {esTransferencia && (
-                                                                        <span style={{ marginLeft: "8px", fontSize: "10px", background: "#dbeafe", color: "#1e40af", padding: "2px 6px", borderRadius: "10px" }}>Banco</span>
+                                                                    <span>
+                                                                        {mov.concepto}
+                                                                    </span>
+                                                                </td>
+                                                                <td>
+                                                                    {mov.concepto.toLowerCase().includes("anulación") || mov.concepto.toLowerCase().includes("anulacion") ? (
+                                                                        <span style={{ marginLeft: "8px", fontSize: "10px", background: "#fee2e2", color: "#991b1b", padding: "2px 6px", borderRadius: "10px" }}>
+                                                                            ANULACIÓN
+                                                                        </span>
+                                                                    ) : esTransferencia ? (
+                                                                        <span style={{ marginLeft: "8px", fontSize: "10px", background: "#dbeafe", color: "#1e40af", padding: "2px 6px", borderRadius: "10px" }}>
+                                                                            {mov.formaPago}
+                                                                        </span>
+                                                                    ) : esEfectivo ? (
+                                                                        <span style={{ marginLeft: "8px", fontSize: "10px", background: "#f3f4f6", color: "#374151", padding: "2px 6px", borderRadius: "10px" }}>
+                                                                            {mov.formaPago}
+                                                                        </span>
+                                                                    ) : (
+                                                                        "—" // Fallback si está vacío
                                                                     )}
                                                                 </td>
                                                                 <td style={{ textAlign: "right", fontWeight: 600, color: esIngreso ? (esTransferencia ? "#2563eb" : "#16a34a") : "#ef4444" }}>
@@ -425,6 +444,7 @@ const Caja: React.FC = () => {
                                             <th>Hora</th>
                                             <th>Tipo</th>
                                             <th>Concepto</th>
+                                            <th>Tipo Movimiento</th>
                                             <th style={{ textAlign: "right" }}>Monto</th>
                                         </tr>
                                     </thead>
@@ -432,13 +452,30 @@ const Caja: React.FC = () => {
                                         {movimientosDetalle.map((mov) => {
                                             const esIngreso = mov.monto > 0;
                                             const esTransferencia = mov.concepto.toUpperCase().includes('TRANSFERENCIA');
+                                            const esEfectivo = mov.concepto.toUpperCase().includes('EFECTIVO');
                                             return (
                                                 <tr key={mov.idMovimiento}>
                                                     <td style={{ fontSize: "12px", color: "#6b7280" }}>{new Date(mov.fechaMovimiento).toLocaleString()}</td>
                                                     <td><span style={{ fontSize: "10px", fontWeight: 600 }}>{mov.tipoMovimiento}</span></td>
                                                     <td>
-                                                        {mov.concepto}
-                                                        {esTransferencia && <span style={{ marginLeft: "8px", fontSize: "10px", background: "#dbeafe", color: "#1e40af", padding: "2px 6px", borderRadius: "10px" }}>Banco</span>}
+                                                        <span>{mov.concepto}</span>
+                                                    </td>
+                                                    <td>
+                                                        {mov.concepto.toLowerCase().includes("anulación") || mov.concepto.toLowerCase().includes("anulacion") ? (
+                                                            <span style={{ marginLeft: "8px", fontSize: "10px", background: "#fee2e2", color: "#991b1b", padding: "2px 6px", borderRadius: "10px" }}>
+                                                                ANULACIÓN
+                                                            </span>
+                                                        ) : esTransferencia ? (
+                                                            <span style={{ marginLeft: "8px", fontSize: "10px", background: "#dbeafe", color: "#1e40af", padding: "2px 6px", borderRadius: "10px" }}>
+                                                                {mov.formaPago}
+                                                            </span>
+                                                        ) : esEfectivo ? (
+                                                            <span style={{ marginLeft: "8px", fontSize: "10px", background: "#f3f4f6", color: "#374151", padding: "2px 6px", borderRadius: "10px" }}>
+                                                                {mov.formaPago}
+                                                            </span>
+                                                        ) : (
+                                                            "—" // Fallback si está vacío
+                                                        )}
                                                     </td>
                                                     <td style={{ textAlign: "right", color: esIngreso ? (esTransferencia ? "#2563eb" : "#16a34a") : "#ef4444" }}>
                                                         {esIngreso ? '+' : '-'}${Math.abs(mov.monto).toFixed(2)}
