@@ -1431,15 +1431,11 @@ const Ventas: React.FC = () => {
                                         type="text"
                                         className="form-input"
                                         required
-                                        pattern="[0-9]+"
-                                        title="Solo se permiten números"
-                                        onKeyPress={(e) => {
-                                            if (!/[0-9]/.test(e.key)) {
-                                                e.preventDefault();
-                                            }
-                                        }}
                                         value={formCliente.identificacion}
-                                        onChange={e => setFormCliente({ ...formCliente, identificacion: e.target.value })}
+                                        onChange={e => {
+                                            const soloNumeros = e.target.value.replace(/[^0-9]/g, '');
+                                            setFormCliente({ ...formCliente, identificacion: soloNumeros });
+                                        }}
                                     />
                                 </div>
 
