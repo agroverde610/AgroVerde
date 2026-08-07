@@ -1,10 +1,10 @@
 import type { IconType } from "react-icons";
-import { LuLayoutDashboard, LuShoppingCart, LuPackage, LuUsers, LuSettings, LuChartBar, LuUserRound, LuBox, LuClipboardList, LuBell, LuStore, LuTicket } from "react-icons/lu";
+import { LuLayoutDashboard, LuShoppingCart, LuPackage, LuUsers, LuSettings, LuChartBar, LuUserRound, LuBox, LuClipboardList, LuBell, LuStore, LuTicket, LuClipboardCheck, LuChartPie } from "react-icons/lu";
 import { MdOutlineProductionQuantityLimits } from "react-icons/md";
 import { TbBrandBumble } from "react-icons/tb";
 import { IoLogoBuffer } from "react-icons/io";
 import { BiCategory } from "react-icons/bi";
-import { LuHistory } from "react-icons/lu"; 
+import { LuHistory } from "react-icons/lu";
 
 
 export interface OpcionMenu {
@@ -12,7 +12,7 @@ export interface OpcionMenu {
     ruta: string;
     icono: IconType;
     roles: string[];
-    subItems?: { icono: IconType,etiqueta: string; ruta: string }[];
+    subItems?: { icono: IconType, etiqueta: string; ruta: string }[];
 }
 
 export const opcionesMenu: OpcionMenu[] = [
@@ -28,7 +28,7 @@ export const opcionesMenu: OpcionMenu[] = [
         icono: LuShoppingCart,
         roles: ["Administrador", "Vendedor"]
     },
-    
+
     {
         etiqueta: "Inventario General",
         ruta: "/inventario",
@@ -39,10 +39,11 @@ export const opcionesMenu: OpcionMenu[] = [
             { icono: MdOutlineProductionQuantityLimits, etiqueta: "Lista de Productos", ruta: "/inventario/productos" },
             { icono: IoLogoBuffer, etiqueta: "Lista de Lotes", ruta: "/inventario/lotes" },
             { icono: TbBrandBumble, etiqueta: "Lista de Marcas", ruta: "/inventario/marca" },
-            { icono: LuTicket, etiqueta: "Promociones", ruta: "/inventario/promociones" }
+            { icono: LuTicket, etiqueta: "Promociones", ruta: "/inventario/promociones" },
+            { icono: LuClipboardCheck, etiqueta: "Inventario Físico", ruta: "/inventario/fisico" }
         ]
     },
-  
+
     {
         etiqueta: "Clientes",
         ruta: "/clientes",
@@ -90,7 +91,11 @@ export const opcionesMenu: OpcionMenu[] = [
         etiqueta: "Reportes",
         ruta: "/reportes",
         icono: LuChartBar,
-        roles: ["Administrador"]
+        roles: ["Administrador"],
+        subItems: [
+            { icono: LuChartBar, etiqueta: "Ventas y Utilidad", ruta: "/reportes" },
+            { icono: LuChartPie, etiqueta: "Reporte de Mermas", ruta: "/inventario/reporte-mermas" }
+        ]
     },
     {
         etiqueta: "Configuración",

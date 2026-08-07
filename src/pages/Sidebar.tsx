@@ -1,9 +1,8 @@
-import { useState, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { opcionesMenu } from "../config/menuconfig.ts";
 import { type UsuarioLogueado } from "../interfaces/auth";
-import { LuLogOut, LuChevronRight } from "react-icons/lu";
+import { LuLogOut, LuChevronDown, LuUserRound } from "react-icons/lu";
 import logoAgroVerde from "../assets/logo-agroverde.png";
 import "../App.css";
 
@@ -22,64 +21,19 @@ const Sidebar: React.FC = () => {
         navigate("/login");
     };
 
+    // Ruta del menú actualmente expandido como acordeón (null = ninguno abierto).
+    // Antes esto controlaba un submenú flotante (portal) que aparecía a la derecha
+    // con el mouse encima; ahora solo abre/cierra el bloque de abajo con un clic.
     const [menuExpandido, setMenuExpandido] = useState<string | null>(null);
     const [sidebarHover, setSidebarHover] = useState(false);
-    // El sidebar se mantiene expandido si el mouse está sobre él, o si hay un
-    // submenú abierto (aunque el mouse ya esté sobre el submenú flotante, que
-    // vive fuera del árbol del sidebar gracias al portal)
-    const sidebarExpandido = sidebarHover || menuExpandido !== null;
-    const [submenuPos, setSubmenuPos] = useState<{ top: number; left: number } | null>(null);
-    const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
-    const cierreTimeout = useRef<number | null>(null);
 
-    useEffect(() => {
-        return () => {
-            if (cierreTimeout.current) window.clearTimeout(cierreTimeout.current);
-        };
-    }, []);
-
-    const cancelarCierre = () => {
-        if (cierreTimeout.current) {
-            window.clearTimeout(cierreTimeout.current);
-            cierreTimeout.current = null;
-        }
-    };
-
-    const abrirSubmenu = (ruta: string) => {
-        cancelarCierre();
-        const el = itemRefs.current[ruta];
-        if (el) {
-            const rect = el.getBoundingClientRect();
-            // Usamos siempre 230 (el ancho expandido del sidebar) en vez del rect.right,
-            // porque al momento de medir, el sidebar todavía puede estar en su ancho
-            // colapsado (70px) ya que la transición CSS no ha terminado.
-            setSubmenuPos({ top: rect.top, left: 230 });
-        }
-        setMenuExpandido(ruta);
-    };
-
-    const programarCierre = () => {
-        cancelarCierre();
-        cierreTimeout.current = window.setTimeout(() => {
-            setMenuExpandido(null);
-            setSubmenuPos(null);
-        }, 200);
-    };
-
-    const cerrarSubmenu = () => {
-        cancelarCierre();
-        setMenuExpandido(null);
-        setSubmenuPos(null);
-        // Al seleccionar una opción del submenú, el mouse queda sobre el
-        // submenú (fuera del área del sidebar principal), así que forzamos
-        // que el sidebar se colapse también, en vez de esperar un mouseleave
-        // que ya no va a ocurrir sobre el propio sidebar.
-        setSidebarHover(false);
+    const toggleSubmenu = (ruta: string) => {
+        setMenuExpandido(prev => (prev === ruta ? null : ruta));
     };
 
     return (
         <div
-            className={`sidebar${sidebarExpandido ? " expanded" : ""}`}
+            className={`sidebar${sidebarHover ? " expanded" : ""}`}
             onMouseEnter={() => setSidebarHover(true)}
             onMouseLeave={() => setSidebarHover(false)}
         >
@@ -95,27 +49,32 @@ const Sidebar: React.FC = () => {
             <nav className="sidebar-nav" style={{ marginTop: 0 }}>
                 {itemsPermitidos.map((item) => {
                     const Icono = item.icono;
+                    const estaAbierto = menuExpandido === item.ruta;
                     const esPadreActivo =
                         !!item.subItems &&
                         (location.pathname === item.ruta ||
                             item.subItems.some((sub) => location.pathname.startsWith(sub.ruta)));
 
                     return (
-                        <div
-                            key={item.ruta}
-                            className="nav-item-wrapper"
-                            onMouseLeave={programarCierre}
-                        >
+                        <div key={item.ruta} className="nav-item-wrapper">
                             {item.subItems ? (
-                                <div
-                                    ref={(el) => { itemRefs.current[item.ruta] = el; }}
+                                <button
+                                    type="button"
                                     className={`sidebar-link${esPadreActivo ? " active" : ""}`}
-                                    onMouseEnter={() => abrirSubmenu(item.ruta)}
+                                    onClick={() => toggleSubmenu(item.ruta)}
+                                    style={{ width: "100%", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
                                 >
                                     <Icono size={18} />
                                     <span>{item.etiqueta}</span>
-                                    <LuChevronRight size={16} style={{ marginLeft: "auto" }} />
-                                </div>
+                                    <LuChevronDown
+                                        size={16}
+                                        style={{
+                                            marginLeft: "auto",
+                                            transition: "transform 0.15s ease",
+                                            transform: estaAbierto ? "rotate(180deg)" : "rotate(0deg)"
+                                        }}
+                                    />
+                                </button>
                             ) : (
                                 <NavLink
                                     to={item.ruta}
@@ -128,34 +87,27 @@ const Sidebar: React.FC = () => {
                                 </NavLink>
                             )}
 
-                            {item.subItems && menuExpandido === item.ruta && submenuPos &&
-                                createPortal(
-                                    <div
-                                        className="sidebar-submenu sidebar-submenu-portal"
-                                        style={{ top: submenuPos.top, left: submenuPos.left }}
-                                        onMouseEnter={cancelarCierre}
-                                        onMouseLeave={programarCierre}
-                                    >
-                                        {item.subItems.map((sub) => {
-                                            const IconoSub = sub.icono;
-                                            return (
-                                                <NavLink
-                                                    key={sub.ruta}
-                                                    to={sub.ruta}
-                                                    className={({ isActive }) =>
-                                                        `sidebar-link sub-link${isActive ? " active" : ""}`
-                                                    }
-                                                    onClick={cerrarSubmenu}
-                                                >
-                                                    {IconoSub && <IconoSub size={18} />}
-                                                    <span>{sub.etiqueta}</span>
-                                                </NavLink>
-                                            );
-                                        })}
-                                    </div>,
-                                    document.body
-                                )
-                            }
+                            {/* Submenú tipo acordeón: se expande justo debajo del padre,
+                                dentro del mismo flujo del sidebar (ya no es un portal flotante). */}
+                            {item.subItems && estaAbierto && (
+                                <div className="sidebar-submenu-acordeon">
+                                    {item.subItems.map((sub) => {
+                                        const IconoSub = sub.icono;
+                                        return (
+                                            <NavLink
+                                                key={sub.ruta}
+                                                to={sub.ruta}
+                                                className={({ isActive }) =>
+                                                    `sidebar-link sub-link${isActive ? " active" : ""}`
+                                                }
+                                            >
+                                                {IconoSub && <IconoSub size={16} />}
+                                                <span>{sub.etiqueta}</span>
+                                            </NavLink>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </div>
                     );
                 })}
@@ -163,10 +115,21 @@ const Sidebar: React.FC = () => {
 
             <div className="sidebar-footer">
                 {usuario && (
-                    <p className="sidebar-user-name">
-                        {usuario.nombre} <br />
-                        <span className="sidebar-user-rol">{usuario.rol}</span>
-                    </p>
+                    <NavLink
+                        to="/perfil"
+                        className={({ isActive }) => `sidebar-user-link${isActive ? " active" : ""}`}
+                        style={{
+                            display: "flex", alignItems: "center", gap: 8, padding: "6px 4px",
+                            marginBottom: 8, textDecoration: "none", color: "inherit", borderRadius: 6,
+                        }}
+                        title="Ver mi perfil"
+                    >
+                        <LuUserRound size={18} style={{ flexShrink: 0 }} />
+                        <p className="sidebar-user-name" style={{ margin: 0 }}>
+                            {usuario.nombre} <br />
+                            <span className="sidebar-user-rol">{usuario.rol}</span>
+                        </p>
+                    </NavLink>
                 )}
                 <button onClick={handleLogout} className="sidebar-logout-btn">
                     <LuLogOut size={18} />

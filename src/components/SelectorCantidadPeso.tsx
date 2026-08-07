@@ -37,7 +37,10 @@ export default function SelectorCantidadPeso({
                     disabled={disabled}
                     onChange={(e) => {
                         const val = parseFloat(e.target.value);
-                        const cantidadValida = isNaN(val) ? 0 : val;
+                        // Redondeamos a 2 decimales — el step="0.01" del input es solo
+                        // una sugerencia visual del navegador, no bloquea que el usuario
+                        // escriba más decimales manualmente.
+                        const cantidadValida = isNaN(val) ? 0 : Math.round(val * 100) / 100;
                         setCantidadMostrada(cantidadValida);
                         emitirCambio(cantidadValida, unidadId);
                     }}

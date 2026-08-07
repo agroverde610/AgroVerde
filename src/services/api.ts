@@ -5,15 +5,19 @@ import type {
     RecibirLoteRequest
 } from '../interfaces/ICompra';
 
+// Si existe la variable de entorno VITE_API_URL (definida en tu archivo .env.local),
+// se usa esa. Si no existe, cae en la URL de producción de Azure por defecto.
 const api = axios.create({
-    baseURL: 'https://agroverde-e9gdg9hbc8a2ctgc.mexicocentral-01.azurewebsites.net/api'
+    baseURL: import.meta.env.VITE_API_URL || 'https://agroverde-e9gdg9hbc8a2ctgc.mexicocentral-01.azurewebsites.net/api'
+    
     // Ya NO forzamos 'Content-Type': 'application/json' aquí.
     // Axios ya pone 'application/json' automático cuando mandas un objeto normal,
     // y 'multipart/form-data; boundary=...' automático cuando mandas un FormData
     // (como en Productos/Agregar, que incluye la imagen) — pero solo si NO
     // le forzamos un header fijo que lo pise, como pasaba antes.
 });
-
+console.log('URL que está usando:', import.meta.env.VITE_API_URL);
+console.log('TODAS las env vars:', import.meta.env);
 // Interceptor: agrega el token JWT en cada petición
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem('token');
@@ -146,7 +150,5 @@ export const getReporteMovimientosUsuario = async (fechaDesde?: string, fechaHas
     });
     return res.data;
 };
-
-
 
 export default api;

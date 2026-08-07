@@ -219,7 +219,7 @@ const Clientes: React.FC = () => {
                             <thead>
                                 <tr>
                                     <th>Identificación</th>
-                                    <th>Razón Social</th>
+                                    <th>Nombres Cliente</th>
                                     <th>Dirección</th>
                                     <th>Teléfono</th>
                                     <th>Estado</th>

@@ -153,9 +153,18 @@ body {
 }
 
 .layout-content {
-    margin-left: 70px;
+    margin-left: 80px; /* antes: 70px — ahora coincide con el ancho real del sidebar colapsado */
     padding: 20px;
     width: 100%;
+    box-sizing: border-box;
+    transition: margin-left 0.25s ease; /* mismo tiempo que la transición del sidebar */
+}
+
+/* Cuando el sidebar tiene la clase .expanded (240px), el contenido se
+   empuja para dejarle ese mismo espacio — sin necesidad de pasar estado
+   entre componentes, el CSS lo detecta solo con :has(). */
+.layout-container:has(.sidebar.expanded) .layout-content {
+    margin-left: 240px;
 }
 
 /* =========================================
@@ -1630,4 +1639,29 @@ input::-webkit-inner-spin-button {
 
 input[type=number] {
     -moz-appearance: textfield;
+}
+/* ============================================
+   SUBMENÚ TIPO ACORDEÓN (Sidebar)
+   Agrega este bloque a tu App.css.
+   Reemplaza cualquier estilo viejo de
+   .sidebar-submenu / .sidebar-submenu-portal
+   si ya no los usas en ningún otro lado.
+============================================ */
+
+.sidebar-submenu-acordeon {
+    display: flex;
+    flex-direction: column;
+    padding-left: 12px;
+    /* pequeña línea guía para que se note que son "hijos" del padre */
+    border-left: 2px solid #e5e7eb;
+    margin-left: 18px;
+}
+
+    .sidebar-submenu-acordeon .sidebar-link.sub-link {
+        padding: 6px 10px;
+        font-size: 13px;
+    }
+
+.sidebar-user-link:hover {
+    background: rgba(0, 0, 0, 0.05);
 }

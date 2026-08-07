@@ -1,7 +1,8 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Layout from "./pages/Layout";
-
+import CambiarPasswordObligatorio from "./pages/CambiarPasswordObligatorio";
+import Perfil from "./pages/Perfil";
 
 import Dashboard from "./pages/Dashboard";
 import Clientes from "./pages/Clientes";
@@ -18,13 +19,16 @@ import Reportes from "./pages/Reportes";
 import Lotes from "./pages/Lotes";
 import Marca from "./pages/Marca";
 import Promociones from "./pages/Promociones";
+import InventarioFisico from "./pages/Inventariofisico";
+import ReporteMermas from "./pages/Reportemermas";
 
 function App() {
     return (
-        <BrowserRouter>
+        <HashRouter>
             <Routes>
                 <Route path="/" element={<Navigate to="/login" replace />} />
                 <Route path="/login" element={<Login />} />
+                <Route path="/cambiar-password-obligatorio" element={<CambiarPasswordObligatorio />} />
 
                 <Route element={<Layout />}>
                     <Route path="/dashboard" element={<Dashboard />} />
@@ -45,9 +49,13 @@ function App() {
                     <Route path="/configuracion/usuarios" element={<Usuarios />} />
                     <Route path="/alertas" element={<Alertas />} />
                     <Route path="/historial" element={<Historial />} />
+                    <Route path="/inventario/fisico" element={<InventarioFisico />} />
+                    <Route path="/inventario/reporte-mermas" element={<ReporteMermas />} />
+                    <Route path="/perfil" element={<Perfil />} />
+                    
                 </Route>
             </Routes>
-        </BrowserRouter>
+        </HashRouter>
     );
 }
 

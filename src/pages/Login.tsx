@@ -6,13 +6,8 @@ import './LoginPage.css';
 import { useNavigate } from "react-router-dom";
 import logoAgroVerde from "../assets/logo-agroverde.png";
 
-// Cambia esto por tu correo/teléfono real de soporte técnico.
 const CONTACTO_SOPORTE = 'soporte@agroverde.com';
 
-// Convierte cualquier error (timeout de SQL, 500, sin conexión, etc.) en un mensaje
-// corto y amigable. Solo deja pasar el mensaje real del backend cuando es un error
-// esperado de validación (400/401), que asumimos que ya viene en lenguaje humano
-// (ej. "Usuario o contraseña incorrectos").
 const obtenerMensajeError = (err: any): string => {
     const status = err?.response?.status;
     if (status === 400 || status === 401) {
@@ -52,7 +47,18 @@ const Login: React.FC = () => {
                     localStorage.setItem('token', respuesta.data.token);
                 }
                 localStorage.setItem("usuario", JSON.stringify(respuesta.data.data));
-                navigate("/dashboard");
+
+                // Marca de tiempo para el control de inactividad
+                localStorage.setItem("ultimaActividad", Date.now().toString());
+
+                // Si el backend indica que toca cambiar contraseña
+                // (primer ingreso o ya pasaron los 2 meses), lo mandamos
+                // a esa pantalla en vez de al dashboard.
+                if (respuesta.data.data.debeCambiarPassword) {
+                    navigate("/cambiar-password-obligatorio");
+                } else {
+                    navigate("/dashboard");
+                }
             }
         } catch (err: any) {
             setError(obtenerMensajeError(err));
@@ -106,7 +112,6 @@ const Login: React.FC = () => {
         <div className="login-page-wrapper">
             <div className="login-card">
 
-                {/* Panel izquierdo de branding, se mantiene igual en las 3 vistas */}
                 <div className="login-panel-branding">
                     <div className="login-panel-branding-top" style={{ justifyContent: 'center', marginBottom: 8 }}>
                         <img
@@ -126,7 +131,6 @@ const Login: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Panel derecho: formulario, cambia según la vista */}
                 <div className="login-panel-form">
                     <img src={logoAgroVerde} alt="Agro Verde" className="login-logo" />
 
@@ -138,7 +142,6 @@ const Login: React.FC = () => {
                     )}
                     {mensajeExito && <div className="success-message" style={{ marginBottom: 14 }}>{mensajeExito}</div>}
 
-                    {/* VISTA 1: LOGIN NORMAL */}
                     {vista === 'login' && (
                         <div>
                             <h2>Iniciar sesión</h2>
@@ -195,7 +198,6 @@ const Login: React.FC = () => {
                         </div>
                     )}
 
-                    {/* VISTA 2: SOLICITAR RECUPERACIÓN */}
                     {vista === 'solicitar' && (
                         <div>
                             <h2>Recuperar contraseña</h2>
@@ -228,7 +230,6 @@ const Login: React.FC = () => {
                         </div>
                     )}
 
-                    {/* VISTA 3: RESTABLECER CONTRASEÑA */}
                     {vista === 'restablecer' && (
                         <div>
                             <h2>Restablecer contraseña</h2>
