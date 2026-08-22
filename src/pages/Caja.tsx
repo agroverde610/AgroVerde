@@ -213,6 +213,16 @@ const Caja: React.FC = () => {
     };
 
     const cuadreActual = calcularCuadre(movimientos);
+
+    useEffect(() => {
+        // Si la vista está intentando cargar una caja abierta, ya terminó de cargar, 
+        // pero no hay registro de APERTURA en los movimientos... significa que es una sesión fantasma.
+        if (idSesion && !cargando && movimientos.length === 0 && vista === 'actual') {
+            // Descomenta la siguiente línea si quieres que se auto-limpie cuando pase esto:
+            limpiarSesionLocal();
+        }
+    }, [movimientos, cargando, idSesion, vista]);
+
     const cuadreHistorico = calcularCuadre(movimientosDetalle);
 
     return (

@@ -283,7 +283,7 @@ const Productos: React.FC = () => {
             data.append('Nombre', formData.nombre ? String(formData.nombre).trim() : '');
             data.append('PrecioCompra', String(precioCompraFinal));
             data.append('PrecioVenta', String(precioVentaFinal));
-            data.append('StockActual', String(formData.stock_actual ?? 0));
+            //data.append('StockActual', String(formData.stock_actual ?? 0));
             data.append('StockMinimo', String(formData.stock_minimo ?? 0));
             data.append('Estado', formData.estado ? 'true' : 'false');
             data.append('CodigoImpuestoSri', formData.codigo_impuesto_sri ? String(formData.codigo_impuesto_sri).trim() : '0');
