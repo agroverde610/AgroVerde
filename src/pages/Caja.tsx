@@ -52,12 +52,40 @@ const Caja: React.FC = () => {
     const [movimientosDetalle, setMovimientosDetalle] = useState<MovimientoCaja[]>([]);
 
     useEffect(() => {
-        const sesionGuardada = localStorage.getItem("caja_sesion_id");
-        if (sesionGuardada) {
-            const sesionId = parseInt(sesionGuardada);
-            setIdSesion(sesionId);
-            cargarFlujoCaja(sesionId, false);
-        }
+        const sincronizarCajaConBackend = async () => {
+            setCargando(true);
+            try {
+                const res = await api.get("Caja/Historial");
+
+                if (res.data.success) {
+                    const cajas: SesionCajaHistorial[] = res.data.data;
+                    const cajaAbierta = cajas.find(c => c.estado === 'ABIERTA');
+
+                    if (cajaAbierta) {
+                        setIdSesion(cajaAbierta.idSesion);
+                        localStorage.setItem("caja_sesion_id", cajaAbierta.idSesion.toString());
+
+                        // ¡AQUÍ ESTÁ LA CLAVE! Agregamos "await" para obligar a React a esperar los datos
+                        await cargarFlujoCaja(cajaAbierta.idSesion, false);
+                    } else {
+                        limpiarSesionLocal();
+                    }
+                }
+            } catch (error) {
+                console.error("Error de conexión al verificar el estado de la caja:", error);
+
+                const sesionGuardada = localStorage.getItem("caja_sesion_id");
+                if (sesionGuardada) {
+                    const sesionId = parseInt(sesionGuardada);
+                    setIdSesion(sesionId);
+                    cargarFlujoCaja(sesionId, false);
+                }
+            } finally {
+                setCargando(false);
+            }
+        };
+
+        sincronizarCajaConBackend();
     }, []);
 
     useEffect(() => {
@@ -213,15 +241,6 @@ const Caja: React.FC = () => {
     };
 
     const cuadreActual = calcularCuadre(movimientos);
-
-    useEffect(() => {
-        // Si la vista está intentando cargar una caja abierta, ya terminó de cargar, 
-        // pero no hay registro de APERTURA en los movimientos... significa que es una sesión fantasma.
-        if (idSesion && !cargando && movimientos.length === 0 && vista === 'actual') {
-            // Descomenta la siguiente línea si quieres que se auto-limpie cuando pase esto:
-            limpiarSesionLocal();
-        }
-    }, [movimientos, cargando, idSesion, vista]);
 
     const cuadreHistorico = calcularCuadre(movimientosDetalle);
 
