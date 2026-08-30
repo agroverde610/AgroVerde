@@ -653,8 +653,9 @@ const Productos: React.FC = () => {
                                 <LuX />
                             </button>
                         </div>
-                        <form onSubmit={handleGuardar}>
-                            <div className="form-grid">
+                        <form onSubmit={handleGuardar} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+                            <div className="modal-body">
+                                <div className="form-grid">
                                 <div className="form-group">
                                     <label className="form-label">Código de Barras</label>
                                     <input
@@ -907,6 +908,7 @@ const Productos: React.FC = () => {
                                         </label>
                                     </div>
                                 )}
+                                </div>
                             </div>
                             <div className="modal-footer">
                                 <button type="button" className="btn-cancelar" onClick={() => setModalAbierto(false)}>

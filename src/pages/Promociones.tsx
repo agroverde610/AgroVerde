@@ -264,6 +264,7 @@ const Promociones: React.FC = () => {
 
             {vista === 'nueva' ? (
                 <form onSubmit={handleGuardar} className="modal-content" style={{ maxWidth: '600px', margin: '20px auto' }}>
+                    <div className="modal-body">
                     <div className="form-grid">
                         <div className="form-group full-width">
                             <label className="form-label">Nombre de la Promoción</label>
@@ -410,6 +411,7 @@ const Promociones: React.FC = () => {
                                 )
                             )}
                         </div>
+                    </div>
                     </div>
 
                     <div className="modal-footer" style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
