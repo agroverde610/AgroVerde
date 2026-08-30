@@ -87,8 +87,8 @@ const Ventas: React.FC = () => {
     // 2. Cargar Productos
     useEffect(() => {
         const url = categoriaActiva
-            ? `productos/Listar?idCategoria=${categoriaActiva}`
-            : "productos/Listar";
+            ? `Ventas/Productos?idCategoria=${categoriaActiva}`
+            : "Ventas/Productos";
 
         api.get(url)
             .then((res) => {
@@ -514,7 +514,7 @@ const Ventas: React.FC = () => {
                 // Reutilizamos el mismo modal de recibo que usa una venta normal,
                 // ya que la cotización convertida es, a todos los efectos, una venta real.
                 alert(`Cotización convertida a Venta #${respuestaConversion.data.idVenta} correctamente.`);
-                const url = categoriaActiva ? `productos/Listar?idCategoria=${categoriaActiva}` : "productos/Listar";
+                const url = categoriaActiva ? `Ventas/Productos?idCategoria=${categoriaActiva}` : "Ventas/Productos";
                 api.get(url).then((res) => {
                     if (res.data && res.data.success) setProductos(res.data.data);
                     else if (Array.isArray(res.data)) setProductos(res.data);
@@ -668,7 +668,7 @@ const Ventas: React.FC = () => {
                 setDescuentoManual(0);
                 setModoDescuentoManual('producto');
 
-                const url = categoriaActiva ? `productos/Listar?idCategoria=${categoriaActiva}` : "productos/Listar";
+                const url = categoriaActiva ? `Ventas/Productos?idCategoria=${categoriaActiva}` : "Ventas/Productos";
                 api.get(url).then((res) => {
                     if (res.data && res.data.success) setProductos(res.data.data);
                     else if (Array.isArray(res.data)) setProductos(res.data);
