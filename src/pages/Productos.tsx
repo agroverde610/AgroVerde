@@ -198,6 +198,20 @@ const Productos: React.FC = () => {
         setPorcentajeGananciaTexto('');
         setModoModal('editar');
         setModalAbierto(true);
+
+        // El stock de la lista puede estar desactualizado (alguien vendió/compró
+        // este producto después de que se cargó). Como Editar SÍ guarda el stock
+        // que se ve en el formulario, refrescamos ese valor puntual contra el
+        // servidor para no arriesgarnos a pisar el stock real con uno viejo.
+        if (producto.codigo_barras) {
+            api.get(`/Productos/BuscarPorCodigoBarras/${encodeURIComponent(producto.codigo_barras)}`)
+                .then(res => {
+                    if (res.data?.success && res.data.data) {
+                        setFormData(prev => ({ ...prev, stock_actual: res.data.data.stockActual ?? prev.stock_actual }));
+                    }
+                })
+                .catch(() => { /* si falla, se queda con el valor de la lista */ });
+        }
     };
 
     const abrirModalVer = (producto: Producto) => {
@@ -289,7 +303,7 @@ const Productos: React.FC = () => {
             data.append('Nombre', formData.nombre ? String(formData.nombre).trim() : '');
             data.append('PrecioCompra', String(precioCompraFinal));
             data.append('PrecioVenta', String(precioVentaFinal));
-            //data.append('StockActual', String(formData.stock_actual ?? 0));
+            data.append('StockActual', String(formData.stock_actual ?? 0));
             data.append('StockMinimo', String(formData.stock_minimo ?? 0));
             data.append('Estado', formData.estado ? 'true' : 'false');
             data.append('CodigoImpuestoSri', formData.codigo_impuesto_sri ? String(formData.codigo_impuesto_sri).trim() : '0');
