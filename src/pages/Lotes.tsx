@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { LuSearch, LuPencil, LuTrash2 } from "react-icons/lu";
+import { LuSearch } from "react-icons/lu";
+import { FiEdit } from "react-icons/fi";
 import api from '../services/api';
 import '../App.css';
 
@@ -12,9 +13,6 @@ const Lotes: React.FC = () => {
     const [loteEditando, setLoteEditando] = useState<any | null>(null);
     const [guardando, setGuardando] = useState(false);
     const [errorModal, setErrorModal] = useState<string | null>(null);
-
-    const [loteAEliminar, setLoteAEliminar] = useState<any | null>(null);
-    const [eliminando, setEliminando] = useState(false);
 
     const cargarLotes = async () => {
         try {
@@ -44,9 +42,8 @@ const Lotes: React.FC = () => {
         setLoteEditando({
             idLote: lote.idLote,
             codigoLote: lote.codigoLote,
-            fechaElaboracion: lote.fechaElaboracion ? lote.fechaElaboracion.substring(0, 10) : '',
-            fechaVencimiento: lote.fechaVencimiento.substring(0, 10),
-            stockRestante: lote.stockRestante
+            fechaElaboracion: lote.fechaElaboracion ? String(lote.fechaElaboracion).substring(0, 10) : '',
+            fechaVencimiento: String(lote.fechaVencimiento).substring(0, 10)
         });
     };
 
@@ -62,10 +59,6 @@ const Lotes: React.FC = () => {
             setErrorModal('La fecha de vencimiento es obligatoria.');
             return;
         }
-        if (loteEditando.stockRestante < 0) {
-            setErrorModal('El stock restante no puede ser negativo.');
-            return;
-        }
 
         setGuardando(true);
         try {
@@ -73,8 +66,7 @@ const Lotes: React.FC = () => {
                 idLote: loteEditando.idLote,
                 codigoLote: loteEditando.codigoLote,
                 fechaElaboracion: loteEditando.fechaElaboracion || null,
-                fechaVencimiento: loteEditando.fechaVencimiento,
-                stockRestante: Number(loteEditando.stockRestante)
+                fechaVencimiento: loteEditando.fechaVencimiento
             });
 
             if (res.data.success) {
@@ -89,28 +81,6 @@ const Lotes: React.FC = () => {
             setErrorModal(err.response?.data?.mensaje ?? 'Error al actualizar el lote.');
         } finally {
             setGuardando(false);
-        }
-    };
-
-    const eliminarLote = async () => {
-        if (!loteAEliminar) return;
-        setEliminando(true);
-        try {
-            const res = await api.delete(`/lotes/Eliminar/${loteAEliminar.idLote}`);
-            if (res.data.success) {
-                setMensaje(res.data.mensaje);
-                setLoteAEliminar(null);
-                cargarLotes();
-                setTimeout(() => setMensaje(null), 3000);
-            } else {
-                setError(res.data.mensaje ?? 'No se pudo eliminar el lote.');
-                setLoteAEliminar(null);
-            }
-        } catch (err: any) {
-            setError(err.response?.data?.mensaje ?? 'Error al eliminar el lote.');
-            setLoteAEliminar(null);
-        } finally {
-            setEliminando(false);
         }
     };
 
@@ -158,11 +128,8 @@ const Lotes: React.FC = () => {
                                     <td>{new Date(l.fechaVencimiento).toLocaleDateString()}</td>
                                     <td>{l.stockRestante}</td>
                                     <td>
-                                        <button className="btn-icon" title="Editar lote" onClick={() => abrirEdicion(l)}>
-                                            <LuPencil size={16} />
-                                        </button>
-                                        <button className="btn-icon delete" title="Eliminar lote" onClick={() => setLoteAEliminar(l)}>
-                                            <LuTrash2 size={16} />
+                                        <button className="btn-icon edit" title="Editar" onClick={() => abrirEdicion(l)}>
+                                            <FiEdit />
                                         </button>
                                     </td>
                                 </tr>
@@ -217,22 +184,11 @@ const Lotes: React.FC = () => {
                                 />
                             </div>
 
-                            <div className="form-group">
-                                <label className="form-label">Stock Restante</label>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    className="form-input"
-                                    value={loteEditando.stockRestante}
-                                    onChange={e => setLoteEditando({ ...loteEditando, stockRestante: e.target.value })}
-                                />
-                            </div>
                         </div>
 
                         <p style={{ fontSize: 12, color: '#9ca3af', marginTop: 8 }}>
-                            El producto y su código de barras no se pueden cambiar aquí — si el lote quedó
-                            asignado al producto equivocado, bórralo y créalo de nuevo.
+                            El producto y su código de barras no se pueden cambiar aquí. Para corregir
+                            la cantidad de stock, usa Inventario Físico — ahí queda con motivo e historial.
                         </p>
 
                         <div className="modal-footer">
@@ -247,32 +203,6 @@ const Lotes: React.FC = () => {
                 </div>
             )}
 
-            {loteAEliminar && (
-                <div className="modal-overlay" onClick={() => setLoteAEliminar(null)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
-                        <div className="modal-header">
-                            <h2>Eliminar Lote</h2>
-                            <button className="btn-close" onClick={() => setLoteAEliminar(null)}>✕</button>
-                        </div>
-                        <p>
-                            ¿Seguro que quieres eliminar el lote <strong>{loteAEliminar.codigoLote}</strong> de{' '}
-                            <strong>{loteAEliminar.nombreProducto}</strong>?
-                        </p>
-                        <p style={{ fontSize: 12, color: '#9ca3af' }}>
-                            Si este lote ya tiene ventas registradas, no se borrará — se desactivará
-                            para conservar el historial.
-                        </p>
-                        <div className="modal-footer">
-                            <button type="button" className="btn-cancelar" onClick={() => setLoteAEliminar(null)}>
-                                Cancelar
-                            </button>
-                            <button type="button" className="btn-guardar" style={{ background: '#dc2626' }} disabled={eliminando} onClick={eliminarLote}>
-                                {eliminando ? 'Eliminando...' : 'Sí, eliminar'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 };
