@@ -486,6 +486,10 @@ const Ventas: React.FC = () => {
 
     const handleConvertirCotizacionAVenta = async () => {
         setError(null);
+        if (!localStorage.getItem("caja_sesion_id")) {
+            setError('Debes abrir tu turno de Caja antes de convertir una cotización en venta.');
+            return;
+        }
         if (modoCliente !== 'registrado' || !clienteSeleccionado) {
             setError('Para convertir directo a venta, el destinatario debe ser un cliente registrado, no un prospecto.');
             return;
@@ -574,6 +578,10 @@ const Ventas: React.FC = () => {
 
     const convertirDesdeHistorial = async (idCotizacion: number) => {
         setError(null);
+        if (!localStorage.getItem("caja_sesion_id")) {
+            setError('Debes abrir tu turno de Caja antes de convertir una cotización en venta.');
+            return;
+        }
         setConvirtiendoId(idCotizacion);
         try {
             const res = await api.post(`Cotizaciones/${idCotizacion}/ConvertirAVenta`, {
