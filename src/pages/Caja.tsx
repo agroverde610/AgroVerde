@@ -17,6 +17,7 @@ interface MovimientoCaja {
 
 interface SesionCajaHistorial {
     idSesion: number;
+    idUsuario: number;
     usuario: string;
     fechaApertura: string;
     montoInicial: number;
@@ -42,6 +43,7 @@ const Caja: React.FC = () => {
     const [mostrarModalMov, setMostrarModalMov] = useState(false);
     const [formMovimiento, setFormMovimiento] = useState({
         tipoMovimiento: "INGRESO",
+        formaPago: "EFECTIVO",
         concepto: "",
         monto: "" as number | ""
     });
@@ -55,19 +57,24 @@ const Caja: React.FC = () => {
         const sincronizarCajaConBackend = async () => {
             setCargando(true);
             try {
+                // 1. Siempre consultamos al backend primero
                 const res = await api.get("Caja/Historial");
 
                 if (res.data.success) {
                     const cajas: SesionCajaHistorial[] = res.data.data;
-                    const cajaAbierta = cajas.find(c => c.estado === 'ABIERTA');
+                    // Buscamos SOLO la caja abierta del usuario actual — una caja abierta
+                    // por otro cajero no cuenta como "mi caja está abierta".
+                    const cajaAbierta = cajas.find(c => c.estado === 'ABIERTA' && c.idUsuario === usuario?.id);
 
                     if (cajaAbierta) {
+                        // 2a. El backend confirma que hay caja abierta: Sincronizamos el frontend
                         setIdSesion(cajaAbierta.idSesion);
                         localStorage.setItem("caja_sesion_id", cajaAbierta.idSesion.toString());
 
-                        // ¡AQUÍ ESTÁ LA CLAVE! Agregamos "await" para obligar a React a esperar los datos
+                        // Obligamos a React a esperar los datos
                         await cargarFlujoCaja(cajaAbierta.idSesion, false);
                     } else {
+                        // 2b. El backend dice que NO hay caja abierta: Limpiamos cualquier basura del navegador
                         limpiarSesionLocal();
                     }
                 }
@@ -172,12 +179,13 @@ const Caja: React.FC = () => {
             const res = await api.post("Caja/Movimiento", {
                 idSesion: idSesion,
                 tipoMovimiento: formMovimiento.tipoMovimiento,
+                formaPago: formMovimiento.formaPago,
                 concepto: formMovimiento.concepto,
                 monto: Number(formMovimiento.monto)
             });
             if (res.data.success) {
                 setMostrarModalMov(false);
-                setFormMovimiento({ tipoMovimiento: "INGRESO", concepto: "", monto: "" });
+                setFormMovimiento({ tipoMovimiento: "INGRESO", formaPago: "EFECTIVO", concepto: "", monto: "" });
                 cargarFlujoCaja(idSesion, false);
             } else {
                 setError(res.data.mensaje);
@@ -215,25 +223,31 @@ const Caja: React.FC = () => {
 
     // --- CÁLCULOS SEPARADOS POR MÉTODO DE PAGO ---
     const calcularCuadre = (movs: MovimientoCaja[]) => {
-        // Efectivo
+        // Función auxiliar para detectar si un movimiento fue por transferencia
+        const esTransferencia = (m: MovimientoCaja) =>
+            m.formaPago?.toUpperCase() === 'TRANSFERENCIA' ||
+            m.concepto.toUpperCase().includes('TRANSFERENCIA');
+
+        // Efectivo Físico
         const totalApertura = movs.filter(m => m.tipoMovimiento === 'APERTURA').reduce((acc, m) => acc + m.monto, 0);
-        const ventasEfectivo = movs.filter(m => m.tipoMovimiento === 'VENTA' && !m.concepto.toUpperCase().includes('TRANSFERENCIA')).reduce((acc, m) => acc + m.monto, 0);
-        const ingresosManuales = movs.filter(m => m.tipoMovimiento === 'INGRESO').reduce((acc, m) => acc + m.monto, 0);
-        const egresosEfectivo = movs.filter(m => m.tipoMovimiento === 'EGRESO' && !m.concepto.toUpperCase().includes('TRANSFERENCIA')).reduce((acc, m) => acc + Math.abs(m.monto), 0);
+        const ventasEfectivo = movs.filter(m => m.tipoMovimiento === 'VENTA' && !esTransferencia(m)).reduce((acc, m) => acc + m.monto, 0);
+        const ingresosEfectivo = movs.filter(m => m.tipoMovimiento === 'INGRESO' && !esTransferencia(m)).reduce((acc, m) => acc + m.monto, 0);
+        const egresosEfectivo = movs.filter(m => m.tipoMovimiento === 'EGRESO' && !esTransferencia(m)).reduce((acc, m) => acc + Math.abs(m.monto), 0);
 
-        // Transferencias
-        const ventasTransferencia = movs.filter(m => m.tipoMovimiento === 'VENTA' && m.concepto.toUpperCase().includes('TRANSFERENCIA')).reduce((acc, m) => acc + m.monto, 0);
-        const anulacionesTransferencia = movs.filter(m => m.tipoMovimiento === 'EGRESO' && m.concepto.toUpperCase().includes('TRANSFERENCIA')).reduce((acc, m) => acc + Math.abs(m.monto), 0);
+        // Movimientos Banco / Transferencias
+        const ventasTransferencia = movs.filter(m => m.tipoMovimiento === 'VENTA' && esTransferencia(m)).reduce((acc, m) => acc + m.monto, 0);
+        const ingresosTransferencia = movs.filter(m => m.tipoMovimiento === 'INGRESO' && esTransferencia(m)).reduce((acc, m) => acc + m.monto, 0);
+        const egresosTransferencia = movs.filter(m => m.tipoMovimiento === 'EGRESO' && esTransferencia(m)).reduce((acc, m) => acc + Math.abs(m.monto), 0);
 
-        const totalTransferencias = ventasTransferencia - anulacionesTransferencia;
+        const totalTransferencias = ventasTransferencia + ingresosTransferencia - egresosTransferencia;
 
         // Total que DEBE haber en la gaveta física (Efectivo)
-        const totalFisicoCalculado = totalApertura + ventasEfectivo + ingresosManuales - egresosEfectivo;
+        const totalFisicoCalculado = totalApertura + ventasEfectivo + ingresosEfectivo - egresosEfectivo;
 
         return {
             totalApertura,
             ventasEfectivo,
-            ingresosManuales,
+            ingresosManuales: ingresosEfectivo,
             egresosEfectivo,
             totalTransferencias,
             totalFisicoCalculado
@@ -241,7 +255,6 @@ const Caja: React.FC = () => {
     };
 
     const cuadreActual = calcularCuadre(movimientos);
-
     const cuadreHistorico = calcularCuadre(movimientosDetalle);
 
     return (
@@ -320,8 +333,7 @@ const Caja: React.FC = () => {
                                                 <tbody>
                                                     {movimientos.map((mov) => {
                                                         const esIngreso = mov.monto > 0;
-                                                        const esTransferencia = mov.concepto.toUpperCase().includes('TRANSFERENCIA');
-                                                        const esEfectivo = mov.concepto.toUpperCase().includes('EFECTIVO');
+                                                        const esTransferencia = mov.formaPago?.toUpperCase() === 'TRANSFERENCIA' || mov.concepto.toUpperCase().includes('TRANSFERENCIA');
 
                                                         return (
                                                             <tr key={mov.idMovimiento}>
@@ -345,12 +357,12 @@ const Caja: React.FC = () => {
                                                                         <span style={{ marginLeft: "8px", fontSize: "10px", background: "#dbeafe", color: "#1e40af", padding: "2px 6px", borderRadius: "10px" }}>
                                                                             {mov.formaPago}
                                                                         </span>
-                                                                    ) : esEfectivo ? (
+                                                                    ) : mov.formaPago ? (
                                                                         <span style={{ marginLeft: "8px", fontSize: "10px", background: "#f3f4f6", color: "#374151", padding: "2px 6px", borderRadius: "10px" }}>
                                                                             {mov.formaPago}
                                                                         </span>
                                                                     ) : (
-                                                                        "—" // Fallback si está vacío
+                                                                        "—"
                                                                     )}
                                                                 </td>
                                                                 <td style={{ textAlign: "right", fontWeight: 600, color: esIngreso ? (esTransferencia ? "#2563eb" : "#16a34a") : "#ef4444" }}>
@@ -480,8 +492,8 @@ const Caja: React.FC = () => {
                                     <tbody>
                                         {movimientosDetalle.map((mov) => {
                                             const esIngreso = mov.monto > 0;
-                                            const esTransferencia = mov.concepto.toUpperCase().includes('TRANSFERENCIA');
-                                            const esEfectivo = mov.concepto.toUpperCase().includes('EFECTIVO');
+                                            const esTransferencia = mov.formaPago?.toUpperCase() === 'TRANSFERENCIA' || mov.concepto.toUpperCase().includes('TRANSFERENCIA');
+
                                             return (
                                                 <tr key={mov.idMovimiento}>
                                                     <td style={{ fontSize: "12px", color: "#6b7280" }}>{new Date(mov.fechaMovimiento).toLocaleString()}</td>
@@ -498,12 +510,12 @@ const Caja: React.FC = () => {
                                                             <span style={{ marginLeft: "8px", fontSize: "10px", background: "#dbeafe", color: "#1e40af", padding: "2px 6px", borderRadius: "10px" }}>
                                                                 {mov.formaPago}
                                                             </span>
-                                                        ) : esEfectivo ? (
+                                                        ) : mov.formaPago ? (
                                                             <span style={{ marginLeft: "8px", fontSize: "10px", background: "#f3f4f6", color: "#374151", padding: "2px 6px", borderRadius: "10px" }}>
                                                                 {mov.formaPago}
                                                             </span>
                                                         ) : (
-                                                            "—" // Fallback si está vacío
+                                                            "—"
                                                         )}
                                                     </td>
                                                     <td style={{ textAlign: "right", color: esIngreso ? (esTransferencia ? "#2563eb" : "#16a34a") : "#ef4444" }}>
@@ -524,22 +536,44 @@ const Caja: React.FC = () => {
                 <div className="modal-overlay" onClick={() => setMostrarModalMov(false)}>
                     <div className="modal-content" style={{ maxWidth: "400px" }} onClick={e => e.stopPropagation()}>
                         <div className="modal-header">
-                            <h2>Registrar Movimiento en Físico</h2>
+                            <h2>Registrar Movimiento</h2>
                             <button className="btn-close" onClick={() => setMostrarModalMov(false)}>✕</button>
                         </div>
                         <form onSubmit={handleGuardarMovimiento} style={{ marginTop: "15px" }}>
                             <div className="form-group">
                                 <div style={{ display: "flex", gap: "10px" }}>
                                     <button type="button" onClick={() => setFormMovimiento({ ...formMovimiento, tipoMovimiento: 'INGRESO' })} style={{ flex: 1, padding: "8px", borderRadius: "6px", border: "1px solid", background: formMovimiento.tipoMovimiento === 'INGRESO' ? "#dcfce7" : "#fff", borderColor: formMovimiento.tipoMovimiento === 'INGRESO' ? "#16a34a" : "#d1d5db", display: "flex", justifyContent: "center", gap: "6px" }}>
-                                        <LuTrendingUp size={16} color={formMovimiento.tipoMovimiento === 'INGRESO' ? "#16a34a" : "#6b7280"} /> Ingreso a Gaveta
+                                        <LuTrendingUp size={16} color={formMovimiento.tipoMovimiento === 'INGRESO' ? "#16a34a" : "#6b7280"} /> Ingreso
                                     </button>
                                     <button type="button" onClick={() => setFormMovimiento({ ...formMovimiento, tipoMovimiento: 'EGRESO' })} style={{ flex: 1, padding: "8px", borderRadius: "6px", border: "1px solid", background: formMovimiento.tipoMovimiento === 'EGRESO' ? "#fee2e2" : "#fff", borderColor: formMovimiento.tipoMovimiento === 'EGRESO' ? "#ef4444" : "#d1d5db", display: "flex", justifyContent: "center", gap: "6px" }}>
-                                        <LuTrendingDown size={16} color={formMovimiento.tipoMovimiento === 'EGRESO' ? "#ef4444" : "#6b7280"} /> Salida de Gaveta
+                                        <LuTrendingDown size={16} color={formMovimiento.tipoMovimiento === 'EGRESO' ? "#ef4444" : "#6b7280"} /> Salida
                                     </button>
                                 </div>
                             </div>
-                            <div className="form-group"><label className="form-label">Concepto</label><input type="text" className="form-input" value={formMovimiento.concepto} onChange={(e) => setFormMovimiento({ ...formMovimiento, concepto: e.target.value })} required /></div>
-                            <div className="form-group"><label className="form-label">Monto Físico ($)</label><input type="number" className="form-input" step="0.01" min="0.01" value={formMovimiento.monto} onChange={(e) => setFormMovimiento({ ...formMovimiento, monto: e.target.value === "" ? "" : parseFloat(e.target.value) })} required /></div>
+
+                            {/* SELECTOR DE FORMA DE PAGO AÑADIDO AQUÍ */}
+                            <div className="form-group" style={{ marginTop: "15px" }}>
+                                <label className="form-label">Forma de Pago</label>
+                                <div style={{ display: "flex", gap: "10px" }}>
+                                    <button type="button" onClick={() => setFormMovimiento({ ...formMovimiento, formaPago: 'EFECTIVO' })} style={{ flex: 1, padding: "8px", borderRadius: "6px", border: "1px solid", background: formMovimiento.formaPago === 'EFECTIVO' ? "#f3f4f6" : "#fff", borderColor: formMovimiento.formaPago === 'EFECTIVO' ? "#6b7280" : "#d1d5db", color: "#374151", fontWeight: formMovimiento.formaPago === 'EFECTIVO' ? 600 : 400 }}>
+                                        💵 Efectivo
+                                    </button>
+                                    <button type="button" onClick={() => setFormMovimiento({ ...formMovimiento, formaPago: 'TRANSFERENCIA' })} style={{ flex: 1, padding: "8px", borderRadius: "6px", border: "1px solid", background: formMovimiento.formaPago === 'TRANSFERENCIA' ? "#dbeafe" : "#fff", borderColor: formMovimiento.formaPago === 'TRANSFERENCIA' ? "#3b82f6" : "#d1d5db", color: formMovimiento.formaPago === 'TRANSFERENCIA' ? "#1e40af" : "#374151", fontWeight: formMovimiento.formaPago === 'TRANSFERENCIA' ? 600 : 400 }}>
+                                        🏦 Transferencia
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="form-label">Concepto</label>
+                                <input type="text" className="form-input" value={formMovimiento.concepto} onChange={(e) => setFormMovimiento({ ...formMovimiento, concepto: e.target.value })} required />
+                            </div>
+
+                            {/* ETIQUETA ACTUALIZADA */}
+                            <div className="form-group">
+                                <label className="form-label">Monto ($)</label>
+                                <input type="number" className="form-input" step="0.01" min="0.01" value={formMovimiento.monto} onChange={(e) => setFormMovimiento({ ...formMovimiento, monto: e.target.value === "" ? "" : parseFloat(e.target.value) })} required />
+                            </div>
                             <div className="modal-footer" style={{ marginTop: "20px" }}>
                                 <button type="button" className="btn-cancelar" onClick={() => setMostrarModalMov(false)}>Cancelar</button>
                                 <button type="submit" className="btn-guardar" disabled={cargando}>Guardar</button>

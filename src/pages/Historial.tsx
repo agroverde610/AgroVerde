@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
     getHistorialCompras, getDetalleCompra,
-    getHistorialVentas, getDetalleVenta, anularVenta
+    getHistorialVentas, getDetalleVenta, anularVenta, anularCompra
 } from '../services/api';
 import type {
     CompraHistorial, DetalleCompraHistorial,
@@ -28,10 +28,15 @@ export default function Historial() {
     const [detalleVenta, setDetalleVenta] = useState<DetalleVentaHistorial[]>([]);
     const [tituloModal, setTituloModal] = useState('');
 
-    // Modal de anulación
+    // Modal de anulación (ventas)
     const [modalAnularAbierto, setModalAnularAbierto] = useState(false);
     const [ventaAAnular, setVentaAAnular] = useState<VentaHistorial | null>(null);
     const [motivoAnulacion, setMotivoAnulacion] = useState('');
+
+    // Modal de anulación (compras)
+    const [modalAnularCompraAbierto, setModalAnularCompraAbierto] = useState(false);
+    const [compraAAnular, setCompraAAnular] = useState<CompraHistorial | null>(null);
+    const [motivoAnulacionCompra, setMotivoAnulacionCompra] = useState('');
 
     // Modal de comprobante
     const [reciboData, setReciboData] = useState<any>(null);
@@ -146,6 +151,35 @@ export default function Historial() {
         }
     };
 
+    const abrirModalAnularCompra = (compra: CompraHistorial) => {
+        setCompraAAnular(compra);
+        setMotivoAnulacionCompra('');
+        setModalAnularCompraAbierto(true);
+    };
+
+    const confirmarAnulacionCompra = async () => {
+        if (!compraAAnular || !motivoAnulacionCompra.trim()) {
+            setError('Debes escribir un motivo para anular la compra.');
+            return;
+        }
+        try {
+            const usuarioGuardado = localStorage.getItem('usuario');
+            const usuario = usuarioGuardado ? JSON.parse(usuarioGuardado) : null;
+
+            const usuarioId = usuario?.id || usuario?.id_usuario || undefined;
+            const res = await anularCompra(compraAAnular.compraId, motivoAnulacionCompra.trim(), usuarioId);
+            if (res.success) {
+                setModalAnularCompraAbierto(false);
+                setCompraAAnular(null);
+                cargar();
+            } else {
+                setError(res.mensaje);
+            }
+        } catch (err: any) {
+            setError(err.response?.data?.mensaje ?? 'Error al anular la compra.');
+        }
+    };
+
     const cerrarModal = () => {
         setModalAbierto(false);
         setDetalleCompra([]);
@@ -238,12 +272,25 @@ export default function Historial() {
                             </thead>
                             <tbody>
                                 {compras.map(c => (
-                                    <tr key={c.compraId}>
+                                    <tr key={c.compraId} style={c.estado === 'Anulada' ? { opacity: 0.6 } : undefined}>
                                         <td>{c.numeroFactura}</td>
                                         <td>{new Date(c.fechaCompra).toLocaleDateString()}</td>
                                         <td>{c.proveedor}</td>
                                         <td>${c.total.toFixed(2)}</td>
-                                        <td>{c.estado}</td>
+                                        <td>
+                                            <span style={{
+                                                color: c.estado === 'Anulada' ? '#ef4444' : '#374151',
+                                                fontWeight: 600,
+                                                fontSize: 12
+                                            }}>
+                                                {c.estado}
+                                            </span>
+                                            {c.estado === 'Anulada' && c.motivoAnulacion && (
+                                                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>
+                                                    {c.motivoAnulacion}
+                                                </div>
+                                            )}
+                                        </td>
                                         <td className="actions-cell">
                                             <button className="btn-action-text" onClick={() => abrirDetalleCompra(c)}>
                                                 Ver detalle
@@ -255,6 +302,15 @@ export default function Historial() {
                                                     onClick={() => continuarCompra(c.compraId)}
                                                 >
                                                     Continuar
+                                                </button>
+                                            )}
+                                            {c.puedeAnular && (
+                                                <button
+                                                    className="btn-action-text"
+                                                    style={{ color: '#ef4444', borderColor: '#ef4444' }}
+                                                    onClick={() => abrirModalAnularCompra(c)}
+                                                >
+                                                    Anular
                                                 </button>
                                             )}
                                         </td>
@@ -428,6 +484,49 @@ export default function Historial() {
                                 style={{ backgroundColor: '#ef4444' }}
                                 onClick={confirmarAnulacion}
                                 disabled={!motivoAnulacion.trim()}
+                            >
+                                Confirmar Anulación
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de anulación (compras) */}
+            {modalAnularCompraAbierto && compraAAnular && (
+                <div className="modal-overlay" onClick={() => setModalAnularCompraAbierto(false)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 450 }}>
+                        <div className="modal-header">
+                            <h2>Anular Compra #{compraAAnular.compraId}</h2>
+                            <button className="btn-close" onClick={() => setModalAnularCompraAbierto(false)}>✕</button>
+                        </div>
+
+                        <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 12 }}>
+                            Esta acción revertirá el stock que ingresó esta compra. Si ya se vendió o
+                            consumió stock de alguno de sus lotes, no se podrá anular. Esta operación no
+                            se puede deshacer.
+                        </p>
+
+                        <div className="form-group">
+                            <label className="form-label">Motivo de anulación *</label>
+                            <textarea
+                                className="form-input"
+                                rows={3}
+                                value={motivoAnulacionCompra}
+                                onChange={e => setMotivoAnulacionCompra(e.target.value)}
+                                placeholder="Ej: Factura duplicada, error en el registro, etc."
+                            />
+                        </div>
+
+                        <div className="modal-footer">
+                            <button className="btn-cancelar" onClick={() => setModalAnularCompraAbierto(false)}>
+                                Cancelar
+                            </button>
+                            <button
+                                className="btn-guardar"
+                                style={{ backgroundColor: '#ef4444' }}
+                                onClick={confirmarAnulacionCompra}
+                                disabled={!motivoAnulacionCompra.trim()}
                             >
                                 Confirmar Anulación
                             </button>

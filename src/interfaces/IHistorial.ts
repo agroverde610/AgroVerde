@@ -8,6 +8,9 @@ export interface CompraHistorial {
     total: number;
     estado: string;
     observaciones?: string;
+    motivoAnulacion?: string;
+    fechaAnulacion?: string;
+    puedeAnular: boolean;
 }
 
 export interface DetalleCompraHistorial {

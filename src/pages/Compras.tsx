@@ -563,12 +563,31 @@ export default function Compras() {
 
                         <div className="form-group">
                             <label className="form-label">Número de Factura</label>
-                            <input
-                                className="form-input"
-                                type="text"
-                                value={numeroFactura}
-                                onChange={e => setNumeroFactura(e.target.value)}
-                            />
+                            <div style={{ display: 'flex', gap: 6 }}>
+                                <input
+                                    className="form-input"
+                                    type="text"
+                                    value={numeroFactura}
+                                    onChange={e => setNumeroFactura(e.target.value)}
+                                    placeholder="Ej: 001-001-000000123"
+                                />
+                                <button
+                                    type="button"
+                                    className="btn-action-text"
+                                    style={{ whiteSpace: 'nowrap' }}
+                                    title="Genera un número al azar con el formato que exige el SRI, para compras sin factura del proveedor"
+                                    onClick={async () => {
+                                        try {
+                                            const res = await api.get('/Compras/NumeroFacturaSugerido');
+                                            if (res.data.success) setNumeroFactura(res.data.data.numeroFactura);
+                                        } catch {
+                                            setError('No se pudo generar el número de factura.');
+                                        }
+                                    }}
+                                >
+                                    No tengo factura
+                                </button>
+                            </div>
                         </div>
 
                         <button className="pos-btn-pagar" onClick={iniciarCompra}>

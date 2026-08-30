@@ -2,8 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { LuSearch, LuCamera, LuTrash2, LuX, LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import { FiEdit } from "react-icons/fi";
 import type { Producto } from '../interfaces/Productos';
-import api from '../services/api';
+import api, { API_ORIGIN } from '../services/api';
 import '../App.css';
+
+// Arma la URL de una imagen de producto: si ya es absoluta (http/https) se usa tal
+// cual; si es una ruta relativa devuelta por el backend, se resuelve contra el mismo
+// origen del backend (API_ORIGIN), no contra un host fijo.
+const resolverUrlImagen = (ruta: string) =>
+    ruta.startsWith('http') ? ruta : `${API_ORIGIN}${ruta.startsWith('/') ? '' : '/'}${ruta}`;
 
 
 interface CategoriasCatalogo {
@@ -538,11 +544,7 @@ const Productos: React.FC = () => {
                                                 <div className="client-name-cell">
                                                     {producto.imagen && typeof producto.imagen === 'string' && producto.imagen.trim() !== "" ? (
                                                         <img
-                                                            src={
-                                                                producto.imagen.startsWith('http')
-                                                                    ? producto.imagen
-                                                                    : `https://localhost:7145${producto.imagen.startsWith('/') ? '' : '/'}${producto.imagen}`
-                                                            }
+                                                            src={resolverUrlImagen(producto.imagen)}
                                                             alt={producto.nombre}
                                                             className="client-avatar"
                                                             style={{ borderRadius: '6px', objectFit: 'cover', width: '40px', height: '40px' }}
@@ -882,7 +884,7 @@ const Productos: React.FC = () => {
                                                 src={
                                                     formData.imagen instanceof File
                                                         ? URL.createObjectURL(formData.imagen)
-                                                        : (formData.imagen.startsWith('http') ? formData.imagen : `https://localhost:7145${formData.imagen.startsWith('/') ? '' : '/'}${formData.imagen}`)
+                                                        : resolverUrlImagen(formData.imagen)
                                                 }
                                                 alt="Vista previa"
                                                 style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '4px' }}
