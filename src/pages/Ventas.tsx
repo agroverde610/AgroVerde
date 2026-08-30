@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { LuSearch, LuTrash2, LuShoppingCart, LuFileText, LuUserPlus, LuCamera } from "react-icons/lu";
-import api from "../services/api";
+import api, { API_ORIGIN } from "../services/api";
 import type { Categoria, Producto, ItemTicket, Cliente } from "../interfaces/ventas";
 import type { UsuarioLogueado } from "../interfaces/auth";
 import ReciboVenta from '../components/ReciboVenta';
@@ -596,8 +596,8 @@ const Ventas: React.FC = () => {
     const handlePagar = async () => {
 
         const sesionCaja = localStorage.getItem("caja_sesion_id");
-        if (!sesionCaja && formaPago === "EFECTIVO") {
-            setError("Debes abrir tu turno de Caja antes de registrar una venta en efectivo.");
+        if (!sesionCaja) {
+            setError("Debes abrir tu turno de Caja antes de registrar una venta.");
             return;
         }
 
@@ -701,11 +701,7 @@ const Ventas: React.FC = () => {
             imagenPath = "/" + imagenPath;
         }
 
-        const urlBaseLimpia = window.location.hostname === "localhost"
-            ? "https://localhost:7145"
-            : window.location.origin;
-
-        const srcUrl = `${urlBaseLimpia}${imagenPath}`;
+        const srcUrl = `${API_ORIGIN}${imagenPath}`;
 
         return (
             <img
@@ -1035,7 +1031,7 @@ const Ventas: React.FC = () => {
                     </h3>
                     {!localStorage.getItem("caja_sesion_id") && modoOperacion === 'venta' && (
                         <div style={{ background: "#fef3c7", color: "#92400e", padding: "10px", borderRadius: "6px", marginBottom: "15px", fontSize: "13px", fontWeight: 600, borderLeft: "4px solid #f59e0b" }}>
-                            ⚠️ Tu caja está cerrada. No podrás cobrar en efectivo hasta abrir el turno.
+                            ⚠️ Tu caja está cerrada. No podrás registrar ninguna venta (efectivo ni transferencia) hasta abrir el turno.
                         </div>
                     )}
                     {error && <div className="error-message" style={{ color: "red", marginBottom: "10px", fontSize: "14px" }}>{error}</div>}
@@ -1299,7 +1295,7 @@ const Ventas: React.FC = () => {
                                                 />
                                             ) : (
                                                 <>
-                                                    <button onClick={() => cambiarCantidad(item.idProducto, 1)}>-</button>
+                                                    <button onClick={() => cambiarCantidad(item.idProducto, -1)}>-</button>
                                                     <input
                                                         type="number"
                                                         min="1"
