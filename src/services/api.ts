@@ -5,11 +5,18 @@ import type {
     RecibirLoteRequest
 } from '../interfaces/ICompra';
 
-// Si existe la variable de entorno VITE_API_URL (definida en tu archivo .env.local),
-// se usa esa. Si no existe, cae en la URL de producción de Azure por defecto.
+// Si existe la variable de entorno VITE_API_URL (definida en tu archivo
+// .env.development.local, que NO se sube a git), se usa esa — eso pasa solo en
+// npm run dev. Si no existe (como en npm run build / npm run deploy), cae en la
+// URL de producción de Azure por defecto.
+const API_URL = 'https://agroverde-e9gdg9hbc8a2ctgc.mexicocentral-01.azurewebsites.net/api';
+
+// Origen del backend sin el sufijo "/api", para armar URLs de recursos estáticos
+// (imágenes de productos, etc.) que sirve el mismo backend.
+export const API_ORIGIN = API_URL.replace(/\/api\/?$/, '');
+
 const api = axios.create({
-    baseURL: 'https://agroverde-e9gdg9hbc8a2ctgc.mexicocentral-01.azurewebsites.net/api'
-    //baseURL: 'https://localhost:7145/api'
+    baseURL: API_URL
 
     // Ya NO forzamos 'Content-Type': 'application/json' aquí.
     // Axios ya pone 'application/json' automático cuando mandas un objeto normal,
@@ -17,8 +24,7 @@ const api = axios.create({
     // (como en Productos/Agregar, que incluye la imagen) — pero solo si NO
     // le forzamos un header fijo que lo pise, como pasaba antes.
 });
-console.log('URL que está usando:', import.meta.env.VITE_API_URL);
-console.log('TODAS las env vars:', import.meta.env);
+
 // Interceptor: agrega el token JWT en cada petición
 api.interceptors.request.use((config) => {
     const token = localStorage.getItem('token');
@@ -101,6 +107,11 @@ export const getHistorialVentas = async (fechaDesde?: string, fechaHasta?: strin
 
 export const anularVenta = async (idVenta: number, motivo: string, idUsuario?: number) => {
     const res = await api.post(`/Ventas/${idVenta}/anular`, { motivo, idUsuario });
+    return res.data;
+};
+
+export const anularCompra = async (compraId: number, motivo: string, idUsuario?: number) => {
+    const res = await api.post(`/Compras/${compraId}/anular`, { motivo, idUsuario });
     return res.data;
 };
 
