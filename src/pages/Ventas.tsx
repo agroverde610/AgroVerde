@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { LuSearch, LuTrash2, LuShoppingCart, LuFileText, LuUserPlus, LuCamera } from "react-icons/lu";
-import api from "../services/api";
+import api, { API_ORIGIN } from "../services/api";
 import type { Categoria, Producto, ItemTicket, Cliente } from "../interfaces/ventas";
 import type { UsuarioLogueado } from "../interfaces/auth";
 import ReciboVenta from '../components/ReciboVenta';
@@ -689,6 +689,42 @@ const Ventas: React.FC = () => {
         }
     };
 
+    const renderImagenProducto = (producto: Producto) => {
+        let imagenPath = (producto as any).imagen || (producto as any).urlImagen || (producto as any).url_imagen;
+        if (!imagenPath) return "🌱";
+
+        if (imagenPath.startsWith("http")) {
+            return (
+                <img
+                    src={imagenPath}
+                    alt={producto.nombre}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "8px" }}
+                />
+            );
+        }
+
+        imagenPath = imagenPath.replace(/^\/?api\//i, "");
+
+        if (!imagenPath.startsWith("/")) {
+            imagenPath = "/" + imagenPath;
+        }
+
+        const srcUrl = `${API_ORIGIN}${imagenPath}`;
+
+        return (
+            <img
+                src={srcUrl}
+                alt={producto.nombre}
+                style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "8px" }}
+                onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = "none";
+                    const parent = (e.target as HTMLImageElement).parentElement;
+                    if (parent) parent.innerText = "🌱";
+                }}
+            />
+        );
+    };
+
     const renderBadgeVencimiento = (producto: Producto) => {
         const fechaVenc = (producto as any).fechaVencimiento;
         const dias = (producto as any).diasRestantes;
@@ -962,7 +998,7 @@ const Ventas: React.FC = () => {
                                                 </span>
                                             )}
                                             <div className="pos-producto-img">
-                                                🌱
+                                                {renderImagenProducto(producto)}
                                             </div>
                                             <span className="pos-producto-nombre">{producto.nombre}</span>
                                             {renderPrecioProducto(producto)}

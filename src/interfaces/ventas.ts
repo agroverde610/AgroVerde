@@ -12,6 +12,7 @@ export interface Producto {
     stockActual: number;
     codigoImpuestoSri: string;
     idCategoria: number;
+    imagen?: string | null;
     categoria: string;
     permiteDecimales?: boolean;
     idPromocion?: number | null;
