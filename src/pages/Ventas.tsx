@@ -800,8 +800,8 @@ const Ventas: React.FC = () => {
             <div className="pos-productos-panel">
                 <div className="pos-header">
                     <h2 className="pos-title">Punto de Venta</h2>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <div style={{ display: 'flex', border: '1px solid #d1d5db', borderRadius: 8, overflow: 'hidden' }}>
+                    <div className="pos-header-controls">
+                        <div className="pos-toggle-group">
                             <button
                                 onClick={() => setModoOperacion('venta')}
                                 style={{
@@ -826,7 +826,7 @@ const Ventas: React.FC = () => {
                         </div>
 
                         {modoOperacion === 'cotizacion' && (
-                            <div style={{ display: 'flex', border: '1px solid #d1d5db', borderRadius: 8, overflow: 'hidden' }}>
+                            <div className="pos-toggle-group">
                                 <button
                                     onClick={() => setVistaCotizacion('nueva')}
                                     style={{
@@ -851,7 +851,7 @@ const Ventas: React.FC = () => {
                         )}
 
                         {!(modoOperacion === 'cotizacion' && vistaCotizacion === 'historial') && (
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <div className="pos-header-search-group">
                                 <div className="pos-search">
                                     <LuSearch className="pos-search-icon" />
                                     <input
@@ -863,26 +863,12 @@ const Ventas: React.FC = () => {
                                 </div>
                                 <button
                                     type="button"
-                                    className="btn"
+                                    className="btn pos-btn-escanear"
                                     onClick={() => setModoCamara(true)}
-                                    title="Escanear con la cámara"
-                                    style={{ display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}
+                                    title={escanerHabilitado ? 'Escanear con la cámara (lector USB activo)' : 'Escanear con la cámara (lector USB pausado)'}
                                 >
                                     <LuCamera size={16} /> Escanear
                                 </button>
-                                <span
-                                    title={escanerHabilitado ? 'El lector USB está activo' : 'El lector USB está pausado (hay un modal abierto)'}
-                                    style={{
-                                        display: 'flex', alignItems: 'center', gap: 4, fontSize: 11,
-                                        color: escanerHabilitado ? '#16a34a' : '#9ca3af', whiteSpace: 'nowrap'
-                                    }}
-                                >
-                                    <span style={{
-                                        width: 7, height: 7, borderRadius: '50%',
-                                        background: escanerHabilitado ? '#16a34a' : '#9ca3af'
-                                    }} />
-                                    {escanerHabilitado ? 'Lector activo' : 'Lector pausado'}
-                                </span>
                             </div>
                         )}
                     </div>
