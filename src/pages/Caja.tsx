@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import api from "../services/api";
+import api, { getReporteVentasPeriodo } from "../services/api";
 import type { UsuarioLogueado } from "../interfaces/auth";
-import { LuLock, LuTrendingUp, LuTrendingDown, LuDollarSign, LuHistory, LuArrowLeft, LuEye, LuLandmark } from "react-icons/lu";
+import { LuLock, LuTrendingUp, LuTrendingDown, LuDollarSign, LuHistory, LuArrowLeft, LuEye, LuLandmark, LuChartColumn } from "react-icons/lu";
 import { FiUnlock, FiPlusCircle } from "react-icons/fi";
 import "../App.css";
 
@@ -23,14 +23,37 @@ interface SesionCajaHistorial {
     montoInicial: number;
     fechaCierre?: string | null;
     montoFinalReal?: number | null;
+    montoTransferenciaReal?: number | null;
     estado: string;
 }
+
+interface ResumenFormaPago {
+    total: number;
+    cantidad: number;
+}
+
+interface CierrePeriodo {
+    idSesion: number;
+    usuario: string;
+    fechaCierre: string;
+    esperado: number;
+    contado: number;
+    diferencia: number;
+    esperadoTransferencia: number;
+    contadoTransferencia: number;
+    diferenciaTransferencia: number;
+}
+
+const primerDiaDelMes = () => {
+    const hoy = new Date();
+    return new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
+};
 
 const Caja: React.FC = () => {
     const usuarioGuardado = localStorage.getItem("usuario");
     const usuario: UsuarioLogueado | null = usuarioGuardado ? JSON.parse(usuarioGuardado) : null;
 
-    const [vista, setVista] = useState<'actual' | 'historial'>('actual');
+    const [vista, setVista] = useState<'actual' | 'historial' | 'reportes'>('actual');
 
     const [idSesion, setIdSesion] = useState<number | null>(null);
     const [movimientos, setMovimientos] = useState<MovimientoCaja[]>([]);
@@ -39,6 +62,7 @@ const Caja: React.FC = () => {
 
     const [montoInicial, setMontoInicial] = useState<number | "">("");
     const [montoFinalReal, setMontoFinalReal] = useState<number | "">("");
+    const [montoTransferenciaReal, setMontoTransferenciaReal] = useState<number | "">("");
 
     const [mostrarModalMov, setMostrarModalMov] = useState(false);
     const [formMovimiento, setFormMovimiento] = useState({
@@ -52,6 +76,15 @@ const Caja: React.FC = () => {
     const [cargandoHistorial, setCargandoHistorial] = useState(false);
     const [sesionDetalleId, setSesionDetalleId] = useState<number | null>(null);
     const [movimientosDetalle, setMovimientosDetalle] = useState<MovimientoCaja[]>([]);
+
+    // --- Reportes de Caja (ventas por forma de pago + diferencias de cuadre) ---
+    const [reporteFechaDesde, setReporteFechaDesde] = useState(primerDiaDelMes());
+    const [reporteFechaHasta, setReporteFechaHasta] = useState(new Date().toISOString().split('T')[0]);
+    const [cargandoReporte, setCargandoReporte] = useState(false);
+    const [reporteGenerado, setReporteGenerado] = useState(false);
+    const [reporteVentasEfectivo, setReporteVentasEfectivo] = useState<ResumenFormaPago | null>(null);
+    const [reporteVentasTransferencia, setReporteVentasTransferencia] = useState<ResumenFormaPago | null>(null);
+    const [cierresPeriodo, setCierresPeriodo] = useState<CierrePeriodo[]>([]);
 
     useEffect(() => {
         const sincronizarCajaConBackend = async () => {
@@ -150,11 +183,16 @@ const Caja: React.FC = () => {
         e.preventDefault();
         if (!idSesion) return;
         if (montoFinalReal === "" || montoFinalReal < 0) { setError("Ingrese el monto físico."); return; }
+        if (montoTransferenciaReal === "" || montoTransferenciaReal < 0) { setError("Ingrese el monto en transferencias."); return; }
         if (!window.confirm("¿Está seguro que desea cerrar la caja?")) return;
 
         setCargando(true);
         try {
-            const res = await api.post("Caja/Cerrar", { idSesion: idSesion, montoFinalReal: Number(montoFinalReal) });
+            const res = await api.post("Caja/Cerrar", {
+                idSesion: idSesion,
+                montoFinalReal: Number(montoFinalReal),
+                montoTransferenciaReal: Number(montoTransferenciaReal)
+            });
             if (res.data.success) {
                 alert("Caja cerrada exitosamente.");
                 limpiarSesionLocal();
@@ -202,6 +240,7 @@ const Caja: React.FC = () => {
         setIdSesion(null);
         setMovimientos([]);
         setMontoFinalReal("");
+        setMontoTransferenciaReal("");
     };
 
     const cargarHistorial = async () => {
@@ -257,6 +296,90 @@ const Caja: React.FC = () => {
     const cuadreActual = calcularCuadre(movimientos);
     const cuadreHistorico = calcularCuadre(movimientosDetalle);
 
+    // Genera el reporte de Caja del rango de fechas elegido: ventas por forma de
+    // pago (reutiliza el mismo reporte del backend que usa la página Reportes) y,
+    // por cada turno CERRADO en ese rango, compara lo esperado (calculado a partir
+    // de sus movimientos) contra lo contado al cierre para detectar faltantes/sobrantes.
+    const cargarReporteCaja = async () => {
+        setCargandoReporte(true);
+        setReporteGenerado(true);
+        setError(null);
+        try {
+            const desde = reporteFechaDesde || undefined;
+            const hasta = reporteFechaHasta || undefined;
+
+            const [resEfectivo, resTransferencia] = await Promise.all([
+                getReporteVentasPeriodo(desde, hasta, 'EFECTIVO'),
+                getReporteVentasPeriodo(desde, hasta, 'TRANSFERENCIA')
+            ]);
+            setReporteVentasEfectivo(resEfectivo.success
+                ? { total: resEfectivo.data.resumen.totalActual, cantidad: resEfectivo.data.resumen.cantidadVentas }
+                : null);
+            setReporteVentasTransferencia(resTransferencia.success
+                ? { total: resTransferencia.data.resumen.totalActual, cantidad: resTransferencia.data.resumen.cantidadVentas }
+                : null);
+
+            const resHistorial = await api.get("Caja/Historial");
+            if (!resHistorial.data.success) {
+                setCierresPeriodo([]);
+                return;
+            }
+
+            const todasLasCajas: SesionCajaHistorial[] = resHistorial.data.data;
+            const cerradasEnRango = todasLasCajas.filter(c => {
+                if (c.estado === 'ABIERTA' || !c.fechaCierre) return false;
+                const fechaCierre = c.fechaCierre.split('T')[0];
+                if (desde && fechaCierre < desde) return false;
+                if (hasta && fechaCierre > hasta) return false;
+                return true;
+            });
+
+            const detalles = await Promise.all(
+                cerradasEnRango.map(async (c): Promise<CierrePeriodo | null> => {
+                    try {
+                        const resFlujo = await api.get(`Caja/Flujo/${c.idSesion}`);
+                        const movs: MovimientoCaja[] = resFlujo.data.success ? resFlujo.data.data : [];
+                        const cuadre = calcularCuadre(movs);
+                        const contado = c.montoFinalReal ?? 0;
+                        const contadoTransferencia = c.montoTransferenciaReal ?? 0;
+                        return {
+                            idSesion: c.idSesion,
+                            usuario: c.usuario,
+                            fechaCierre: c.fechaCierre!,
+                            esperado: cuadre.totalFisicoCalculado,
+                            contado,
+                            diferencia: Math.round((contado - cuadre.totalFisicoCalculado) * 100) / 100,
+                            esperadoTransferencia: cuadre.totalTransferencias,
+                            contadoTransferencia,
+                            diferenciaTransferencia: Math.round((contadoTransferencia - cuadre.totalTransferencias) * 100) / 100
+                        };
+                    } catch {
+                        return null;
+                    }
+                })
+            );
+
+            setCierresPeriodo(
+                detalles
+                    .filter((d): d is CierrePeriodo => d !== null)
+                    .sort((a, b) => new Date(b.fechaCierre).getTime() - new Date(a.fechaCierre).getTime())
+            );
+        } catch (err: any) {
+            setError(err.response?.data?.mensaje || "Error al generar el reporte de caja.");
+        } finally {
+            setCargandoReporte(false);
+        }
+    };
+
+    const totalesCierresPeriodo = cierresPeriodo.reduce((acc, c) => {
+        if (c.diferencia < 0) acc.faltante += Math.abs(c.diferencia);
+        if (c.diferencia > 0) acc.sobrante += c.diferencia;
+        if (c.diferenciaTransferencia < 0) acc.faltanteTransferencia += Math.abs(c.diferenciaTransferencia);
+        if (c.diferenciaTransferencia > 0) acc.sobranteTransferencia += c.diferenciaTransferencia;
+        if (c.diferencia !== 0 || c.diferenciaTransferencia !== 0) acc.turnosConDiferencia += 1;
+        return acc;
+    }, { faltante: 0, sobrante: 0, faltanteTransferencia: 0, sobranteTransferencia: 0, turnosConDiferencia: 0 });
+
     return (
         <div style={{ padding: "20px", maxWidth: "1200px", margin: "0 auto" }}>
             <div className="pos-header" style={{ marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px" }}>
@@ -267,6 +390,9 @@ const Caja: React.FC = () => {
                     </button>
                     <button onClick={() => setVista('historial')} style={{ padding: '8px 16px', fontSize: 14, border: 'none', cursor: 'pointer', background: vista === 'historial' ? '#0f2a1f' : '#fff', color: vista === 'historial' ? '#fff' : '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <LuHistory size={15} /> Historial
+                    </button>
+                    <button onClick={() => setVista('reportes')} style={{ padding: '8px 16px', fontSize: 14, border: 'none', cursor: 'pointer', background: vista === 'reportes' ? '#0f2a1f' : '#fff', color: vista === 'reportes' ? '#fff' : '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <LuChartColumn size={15} /> Reportes
                     </button>
                 </div>
             </div>
@@ -399,7 +525,24 @@ const Caja: React.FC = () => {
                                                 {Number(montoFinalReal) > cuadreActual.totalFisicoCalculado && `Sobrante de Efectivo: $${(Number(montoFinalReal) - cuadreActual.totalFisicoCalculado).toFixed(2)}`}
                                             </div>
                                         )}
-                                        <button type="submit" className="pos-btn-pagar" style={{ width: "100%", background: "#111827" }} disabled={cargando}>Confirmar Cierre de Efectivo</button>
+
+                                        <div className="form-group">
+                                            <label className="form-label" style={{ fontWeight: 600 }}>Transferencias Total Real</label>
+                                            <p style={{ fontSize: "11px", color: "#6b7280", marginTop: 0, marginBottom: "6px" }}>Verifique este monto contra el estado de cuenta / app del banco.</p>
+                                            <div style={{ position: "relative" }}>
+                                                <LuLandmark style={{ position: "absolute", left: "10px", top: "11px", color: "#9ca3af" }} size={18} />
+                                                <input type="number" className="form-input" style={{ paddingLeft: "32px", fontSize: "18px", fontWeight: "bold" }} step="0.01" min="0" value={montoTransferenciaReal} onChange={(e) => setMontoTransferenciaReal(e.target.value === "" ? "" : parseFloat(e.target.value))} required />
+                                            </div>
+                                        </div>
+                                        {montoTransferenciaReal !== "" && (
+                                            <div style={{ padding: "10px", borderRadius: "6px", marginBottom: "20px", fontWeight: 600, textAlign: "center", background: Number(montoTransferenciaReal) === cuadreActual.totalTransferencias ? "#dcfce7" : (Number(montoTransferenciaReal) < cuadreActual.totalTransferencias ? "#fee2e2" : "#fef3c7"), color: Number(montoTransferenciaReal) === cuadreActual.totalTransferencias ? "#166534" : (Number(montoTransferenciaReal) < cuadreActual.totalTransferencias ? "#991b1b" : "#92400e") }}>
+                                                {Number(montoTransferenciaReal) === cuadreActual.totalTransferencias && "¡Transferencias Exactas!"}
+                                                {Number(montoTransferenciaReal) < cuadreActual.totalTransferencias && `Faltante en Transferencias: $${(cuadreActual.totalTransferencias - Number(montoTransferenciaReal)).toFixed(2)}`}
+                                                {Number(montoTransferenciaReal) > cuadreActual.totalTransferencias && `Sobrante en Transferencias: $${(Number(montoTransferenciaReal) - cuadreActual.totalTransferencias).toFixed(2)}`}
+                                            </div>
+                                        )}
+
+                                        <button type="submit" className="pos-btn-pagar" style={{ width: "100%", background: "#111827" }} disabled={cargando}>Confirmar Cierre de Caja</button>
                                     </form>
                                 </div>
                             </div>
@@ -424,6 +567,7 @@ const Caja: React.FC = () => {
                                                 <th>Fecha Apertura</th>
                                                 <th>Fecha Cierre</th>
                                                 <th>Monto Final (Físico)</th>
+                                                <th>Transferencias</th>
                                                 <th>Estado</th>
                                                 <th>Acciones</th>
                                             </tr>
@@ -436,6 +580,7 @@ const Caja: React.FC = () => {
                                                     <td>{new Date(c.fechaApertura).toLocaleString()}</td>
                                                     <td>{c.fechaCierre ? new Date(c.fechaCierre).toLocaleString() : '-'}</td>
                                                     <td style={{ fontWeight: 600 }}>{c.montoFinalReal != null ? `$${c.montoFinalReal.toFixed(2)}` : '-'}</td>
+                                                    <td style={{ fontWeight: 600 }}>{c.montoTransferenciaReal != null ? `$${c.montoTransferenciaReal.toFixed(2)}` : '-'}</td>
                                                     <td>
                                                         <span style={{ fontSize: "12px", fontWeight: 600, color: c.estado === 'ABIERTA' ? '#16a34a' : '#6b7280' }}>{c.estado}</span>
                                                     </td>
@@ -528,6 +673,135 @@ const Caja: React.FC = () => {
                                 </table>
                             </div>
                         </div>
+                    )}
+                </div>
+            )}
+
+            {/* VISTA REPORTES */}
+            {vista === 'reportes' && (
+                <div style={{ background: "#fff", borderRadius: "10px", border: "1px solid #e5e7eb", padding: "20px" }}>
+                    <h3 style={{ marginTop: 0, marginBottom: "20px" }}>Reportes de Caja</h3>
+
+                    <div style={{ display: "flex", gap: "10px", alignItems: "flex-end", flexWrap: "wrap", marginBottom: "20px" }}>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                            <label className="form-label">Desde</label>
+                            <input type="date" className="form-input" value={reporteFechaDesde} onChange={(e) => setReporteFechaDesde(e.target.value)} />
+                        </div>
+                        <div className="form-group" style={{ marginBottom: 0 }}>
+                            <label className="form-label">Hasta</label>
+                            <input type="date" className="form-input" value={reporteFechaHasta} onChange={(e) => setReporteFechaHasta(e.target.value)} />
+                        </div>
+                        <button className="btn" style={{ background: "#0f2a1f", color: "#fff" }} onClick={cargarReporteCaja} disabled={cargandoReporte}>
+                            {cargandoReporte ? "Generando..." : "Generar Reporte"}
+                        </button>
+                    </div>
+
+                    {!reporteGenerado ? (
+                        <p className="pos-empty">Elige un rango de fechas y presiona "Generar Reporte".</p>
+                    ) : cargandoReporte ? (
+                        <p style={{ textAlign: "center" }}>Cargando...</p>
+                    ) : (
+                        <>
+                            {/* Ventas por forma de pago */}
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "15px", marginBottom: "25px" }}>
+                                <div style={{ background: "#f0fdf4", padding: "15px 20px", borderRadius: "10px", borderLeft: "4px solid #16a34a" }}>
+                                    <div style={{ fontSize: "12px", color: "#166534", fontWeight: 600 }}>VENTAS EN EFECTIVO</div>
+                                    <div style={{ fontSize: "22px", fontWeight: 700, color: "#166534" }}>${(reporteVentasEfectivo?.total ?? 0).toFixed(2)}</div>
+                                    <div style={{ fontSize: "11px", color: "#6b7280" }}>{reporteVentasEfectivo?.cantidad ?? 0} venta(s)</div>
+                                </div>
+                                <div style={{ background: "#eff6ff", padding: "15px 20px", borderRadius: "10px", borderLeft: "4px solid #3b82f6" }}>
+                                    <div style={{ fontSize: "12px", color: "#1e3a8a", fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}><LuLandmark size={14} /> VENTAS POR TRANSFERENCIA</div>
+                                    <div style={{ fontSize: "22px", fontWeight: 700, color: "#1e3a8a" }}>${(reporteVentasTransferencia?.total ?? 0).toFixed(2)}</div>
+                                    <div style={{ fontSize: "11px", color: "#6b7280" }}>{reporteVentasTransferencia?.cantidad ?? 0} venta(s)</div>
+                                </div>
+                                <div style={{ background: "#0f2a1f", padding: "15px 20px", borderRadius: "10px", color: "#fff", borderLeft: "4px solid #10b981" }}>
+                                    <div style={{ fontSize: "12px", color: "#9ca3af", fontWeight: 600 }}>TOTAL VENDIDO</div>
+                                    <div style={{ fontSize: "22px", fontWeight: 700 }}>${((reporteVentasEfectivo?.total ?? 0) + (reporteVentasTransferencia?.total ?? 0)).toFixed(2)}</div>
+                                </div>
+                            </div>
+
+                            {/* Diferencias de cuadre por turno cerrado */}
+                            <h4 style={{ margin: "0 0 10px", color: "#374151" }}>Diferencias de Cuadre por Turno</h4>
+
+                            {cierresPeriodo.length > 0 && (
+                                <div style={{ display: "flex", gap: "15px", marginBottom: "15px", flexWrap: "wrap" }}>
+                                    <span style={{ fontSize: "13px", color: "#6b7280" }}>
+                                        Turnos con diferencia: <b style={{ color: totalesCierresPeriodo.turnosConDiferencia > 0 ? "#991b1b" : "#166534" }}>{totalesCierresPeriodo.turnosConDiferencia}</b> de {cierresPeriodo.length}
+                                    </span>
+                                    <span style={{ fontSize: "13px", color: "#991b1b" }}>Faltante Efectivo: ${totalesCierresPeriodo.faltante.toFixed(2)}</span>
+                                    <span style={{ fontSize: "13px", color: "#92400e" }}>Sobrante Efectivo: ${totalesCierresPeriodo.sobrante.toFixed(2)}</span>
+                                    <span style={{ fontSize: "13px", color: "#991b1b" }}>Faltante Transferencias: ${totalesCierresPeriodo.faltanteTransferencia.toFixed(2)}</span>
+                                    <span style={{ fontSize: "13px", color: "#92400e" }}>Sobrante Transferencias: ${totalesCierresPeriodo.sobranteTransferencia.toFixed(2)}</span>
+                                </div>
+                            )}
+
+                            <div className="table-container">
+                                <table className="clientes-table">
+                                    <thead>
+                                        <tr>
+                                            <th rowSpan={2} style={{ verticalAlign: "bottom" }}>Fecha Cierre</th>
+                                            <th rowSpan={2} style={{ verticalAlign: "bottom" }}>Usuario</th>
+                                            <th colSpan={3} style={{ textAlign: "center", borderBottom: "1px solid #e5e7eb" }}>Efectivo</th>
+                                            <th colSpan={3} style={{ textAlign: "center", borderBottom: "1px solid #e5e7eb" }}>Transferencias</th>
+                                        </tr>
+                                        <tr>
+                                            <th style={{ textAlign: "right" }}>Esperado</th>
+                                            <th style={{ textAlign: "right" }}>Contado</th>
+                                            <th style={{ textAlign: "right" }}>Diferencia</th>
+                                            <th style={{ textAlign: "right" }}>Esperado</th>
+                                            <th style={{ textAlign: "right" }}>Contado</th>
+                                            <th style={{ textAlign: "right" }}>Diferencia</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {cierresPeriodo.length === 0 ? (
+                                            <tr>
+                                                <td colSpan={8} style={{ textAlign: "center", color: "#9ca3af", padding: "20px" }}>
+                                                    No hay turnos cerrados en este período.
+                                                </td>
+                                            </tr>
+                                        ) : (
+                                            cierresPeriodo.map((c) => (
+                                                <tr key={c.idSesion}>
+                                                    <td>{new Date(c.fechaCierre).toLocaleString()}</td>
+                                                    <td>{c.usuario}</td>
+                                                    <td style={{ textAlign: "right" }}>${c.esperado.toFixed(2)}</td>
+                                                    <td style={{ textAlign: "right" }}>${c.contado.toFixed(2)}</td>
+                                                    <td style={{ textAlign: "right" }}>
+                                                        <span style={{
+                                                            fontSize: "12px", fontWeight: 600, padding: "3px 8px", borderRadius: "10px",
+                                                            background: c.diferencia === 0 ? "#dcfce7" : (c.diferencia < 0 ? "#fee2e2" : "#fef3c7"),
+                                                            color: c.diferencia === 0 ? "#166534" : (c.diferencia < 0 ? "#991b1b" : "#92400e")
+                                                        }}>
+                                                            {c.diferencia === 0
+                                                                ? "Exacto"
+                                                                : c.diferencia < 0
+                                                                    ? `Faltante $${Math.abs(c.diferencia).toFixed(2)}`
+                                                                    : `Sobrante $${c.diferencia.toFixed(2)}`}
+                                                        </span>
+                                                    </td>
+                                                    <td style={{ textAlign: "right" }}>${c.esperadoTransferencia.toFixed(2)}</td>
+                                                    <td style={{ textAlign: "right" }}>${c.contadoTransferencia.toFixed(2)}</td>
+                                                    <td style={{ textAlign: "right" }}>
+                                                        <span style={{
+                                                            fontSize: "12px", fontWeight: 600, padding: "3px 8px", borderRadius: "10px",
+                                                            background: c.diferenciaTransferencia === 0 ? "#dcfce7" : (c.diferenciaTransferencia < 0 ? "#fee2e2" : "#fef3c7"),
+                                                            color: c.diferenciaTransferencia === 0 ? "#166534" : (c.diferenciaTransferencia < 0 ? "#991b1b" : "#92400e")
+                                                        }}>
+                                                            {c.diferenciaTransferencia === 0
+                                                                ? "Exacto"
+                                                                : c.diferenciaTransferencia < 0
+                                                                    ? `Faltante $${Math.abs(c.diferenciaTransferencia).toFixed(2)}`
+                                                                    : `Sobrante $${c.diferenciaTransferencia.toFixed(2)}`}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))
+                                        )}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
                     )}
                 </div>
             )}
